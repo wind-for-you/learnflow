@@ -69,16 +69,15 @@ docker compose up -d
 
 **现象**：日志里出现 `Error loading shared library libssl.so.1.1`、`libquery_engine-linux-musl.so.node`、`PrismaClientInitializationError`。
 
-**原因**：Alpine 3.17+ 默认只有 OpenSSL 3，而 Prisma 的 musl 引擎依赖 OpenSSL 1.1（libssl.so.1.1）。
+**原因**：Alpine 3.17+ 默认只有 OpenSSL 3，而 Prisma 的 musl 引擎依赖 OpenSSL 1.1；且 Alpine 3.21+ 已移除 `openssl1.1-compat` 包。
 
-**处理**：当前仓库的 `server/Dockerfile` 已加入 `openssl1.1-compat`。若你未拉取最新代码，可在 Dockerfile 的 `apk add` 行加上 `openssl1.1-compat`，然后**重新构建镜像**：
+**处理**：当前仓库的 `server/Dockerfile` 已改为 **Debian** 基础镜像（`node:18-bookworm-slim`），Prisma 会使用 glibc + OpenSSL 3 引擎，无需兼容包。拉取最新代码后**重新构建**即可：
 
 ```bash
+git pull
 docker compose build --no-cache backend
 docker compose up -d
 ```
-
-若当前 Alpine 版本没有 `openssl1.1-compat`（构建报错 package not found），可改用 Debian 基础镜像，例如将 `FROM node:18-alpine` 改为 `FROM node:18-bookworm-slim`，并用 `apt-get install -y curl dumb-init` 替代 `apk add`。
 
 ---
 

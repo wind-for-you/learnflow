@@ -1,11 +1,14 @@
 # 单阶段构建 — 跳过 tsc 编译，直接用 tsx 运行源码
-# （项目有预存 TypeScript 类型错误，tsc 会失败，但 tsx 运行正常）
-FROM node:18-alpine
+# 使用 Debian 基础镜像，与宿主机一致且 Prisma 引擎（glibc+OpenSSL3）无兼容问题
+FROM node:18-bookworm-slim
 
 WORKDIR /app
 
-# Prisma 引擎依赖 libssl.so.1.1，Alpine 3.17+ 默认只有 OpenSSL 3，需安装兼容包
-RUN apk add --no-cache curl dumb-init openssl1.1-compat
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    dumb-init \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 COPY prisma ./prisma/
