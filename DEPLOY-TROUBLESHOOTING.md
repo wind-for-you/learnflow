@@ -65,7 +65,24 @@ docker compose up -d
 
 ---
 
-### ④ 镜像内没有 curl（少见）
+### ④ Prisma 报错 libssl.so.1.1: No such file or directory
+
+**现象**：日志里出现 `Error loading shared library libssl.so.1.1`、`libquery_engine-linux-musl.so.node`、`PrismaClientInitializationError`。
+
+**原因**：Alpine 3.17+ 默认只有 OpenSSL 3，而 Prisma 的 musl 引擎依赖 OpenSSL 1.1（libssl.so.1.1）。
+
+**处理**：当前仓库的 `server/Dockerfile` 已加入 `openssl1.1-compat`。若你未拉取最新代码，可在 Dockerfile 的 `apk add` 行加上 `openssl1.1-compat`，然后**重新构建镜像**：
+
+```bash
+docker compose build --no-cache backend
+docker compose up -d
+```
+
+若当前 Alpine 版本没有 `openssl1.1-compat`（构建报错 package not found），可改用 Debian 基础镜像，例如将 `FROM node:18-alpine` 改为 `FROM node:18-bookworm-slim`，并用 `apt-get install -y curl dumb-init` 替代 `apk add`。
+
+---
+
+### ⑤ 镜像内没有 curl（少见）
 
 **现象**：健康检查报错类似 `curl not found` 或 `executable file not found`。
 

@@ -4,7 +4,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache curl dumb-init
+# Prisma 引擎依赖 libssl.so.1.1，Alpine 3.17+ 默认只有 OpenSSL 3，需安装兼容包
+RUN apk add --no-cache curl dumb-init openssl1.1-compat
 
 COPY package*.json ./
 COPY prisma ./prisma/
