@@ -384,22 +384,19 @@ router.get(
         return;
       }
 
-      // 获取统计信息
-      const [planCount, taskStats, recentCheckins] = await Promise.all([
+      const taskWhere = {
+        plan: { goalId, userId },
+        userId,
+      };
+
+      // 获取统计信息（Task.completed 为 Boolean，用 count 统计）
+      const [planCount, totalTasks, completedTasks, recentCheckins] = await Promise.all([
         prisma.plan.count({
           where: { goalId, userId },
         }),
-        prisma.task.aggregate({
-          where: { 
-            plan: { goalId, userId },
-            userId,
-          },
-          _count: {
-            id: true,
-          },
-          _sum: {
-            completed: true,
-          },
+        prisma.task.count({ where: taskWhere }),
+        prisma.task.count({
+          where: { ...taskWhere, completed: true },
         }),
         prisma.checkin.findMany({
           where: { userId },
@@ -413,9 +410,6 @@ router.get(
           },
         }),
       ]);
-
-      const completedTasks = taskStats._sum.completed || 0;
-      const totalTasks = taskStats._count.id || 0;
       const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
       const totalStudyTime = recentCheckins.reduce((sum, checkin) => sum + checkin.duration, 0);

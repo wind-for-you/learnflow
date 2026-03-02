@@ -3,22 +3,15 @@ import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 import prisma from '../shared/prisma';
 
-// 扩展 Request 类型以包含用户信息
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: Role;
-  };
-}
+// 与全局扩展的 Express.Request 一致，便于路由使用
+export type AuthenticatedRequest = Request;
 
 /**
  * JWT 认证中间件
  * 验证请求头中的 Authorization token，并将用户信息添加到 request 对象中
  */
 export const requireAuth = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -100,7 +93,7 @@ export const requireAuth = async (
  * @param roles 允许访问的角色数组
  */
 export const requireRole = (roles: Role[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ 
         error: 'Unauthorized', 
@@ -143,14 +136,15 @@ export const generateToken = (userId: string): string => {
     throw new Error('JWT密钥未配置');
   }
 
+  const secret = process.env.JWT_SECRET;
   return jwt.sign(
     { userId },
-    process.env.JWT_SECRET,
-    { 
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    secret,
+    {
+      expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as string,
       issuer: 'learnflow',
-      audience: 'learnflow-users'
-    }
+      audience: 'learnflow-users',
+    } as jwt.SignOptions
   );
 };
 
@@ -159,7 +153,7 @@ export const generateToken = (userId: string): string => {
  * 用于可选认证的路由
  */
 export const optionalAuth = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
