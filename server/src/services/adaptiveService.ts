@@ -56,10 +56,11 @@ export async function analyzeAndSuggest(
 
   const apiKey = process.env.OPENROUTER_API_KEY || '';
   const baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+  const model = process.env.OPENROUTER_MODEL || 'qwen3.6-plus';
 
   if (apiKey) {
     try {
-      return await callAIForSuggestion(apiKey, baseURL, {
+      return await callAIForSuggestion(apiKey, baseURL, model, {
         planTitle: plan.title,
         durationWeeks,
         elapsedWeeks,
@@ -70,7 +71,12 @@ export async function analyzeAndSuggest(
         totalTasks,
       });
     } catch (error) {
-      logger.error('AI 自适应建议生成失败，使用规则回退', { error });
+      const detail = extractAxiosErrorDetail(error);
+      logger.error('AI 自适应建议生成失败，使用规则回退', {
+        status: detail.status,
+        requestId: detail.requestId,
+        message: detail.message,
+      });
     }
   }
 
@@ -94,9 +100,31 @@ interface SuggestionContext {
   totalTasks: number;
 }
 
+function extractAxiosErrorDetail(error: unknown): {
+  status?: number;
+  requestId?: string;
+  message?: string;
+} {
+  if (!axios.isAxiosError(error)) {
+    return {};
+  }
+
+  const status = error.response?.status;
+  const data = error.response?.data;
+  const requestId = data?.request_id || data?.requestId;
+  const message =
+    data?.error?.message ||
+    data?.message ||
+    (typeof data === 'string' ? data : undefined) ||
+    error.message;
+
+  return { status, requestId, message };
+}
+
 async function callAIForSuggestion(
   apiKey: string,
   baseURL: string,
+  model: string,
   ctx: SuggestionContext,
 ): Promise<AdaptiveSuggestion> {
   const prompt = `你是一位学习教练。请根据以下学习进度数据，给出自适应学习建议。
@@ -125,7 +153,7 @@ adjustments 数组应包含从当前周到最后一周的调整建议。action �
   const response = await axios.post(
     `${baseURL}/chat/completions`,
     {
-      model: 'openai/gpt-3.5-turbo',
+      model,
       messages: [
         { role: 'system', content: '你是一位学习教练，返回严格合法的 JSON。' },
         { role: 'user', content: prompt },

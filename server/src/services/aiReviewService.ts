@@ -49,10 +49,11 @@ export async function generateAIReview(
 
   const apiKey = process.env.OPENROUTER_API_KEY || '';
   const baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+  const model = process.env.OPENROUTER_MODEL || 'qwen3.6-plus';
 
   if (apiKey) {
     try {
-      return await callAIForReview(apiKey, baseURL, {
+      return await callAIForReview(apiKey, baseURL, model, {
         period,
         totalCheckins,
         totalDuration,
@@ -63,7 +64,12 @@ export async function generateAIReview(
         goalSummaries,
       });
     } catch (error) {
-      logger.error('AI 复盘生成失败，使用模板回退', { error });
+      const detail = extractAxiosErrorDetail(error);
+      logger.error('AI 复盘生成失败，使用模板回退', {
+        status: detail.status,
+        requestId: detail.requestId,
+        message: detail.message,
+      });
     }
   }
 
@@ -76,6 +82,57 @@ export async function generateAIReview(
     taskCompletionRate,
     goalSummaries,
   });
+}
+
+export interface StructuredReviewSummary {
+  summary: string;
+  highlights: string[];
+  suggestions: string[];
+  isFallback: boolean;
+}
+
+/**
+ * 生成结构化复盘摘要（用于 /reviews/ai-summary 与 analytics 周报）
+ */
+export async function generateAIReviewSummary(
+  userId: string,
+  period: 'weekly' | 'monthly' | 'quarterly',
+): Promise<StructuredReviewSummary> {
+  const normalizedPeriod = period === 'quarterly' ? 'monthly' : period;
+  const raw = await generateAIReview(userId, normalizedPeriod);
+
+  const highlightsMatch = raw.match(/##\s*.*亮点[\s\S]*?(?=##|$)/);
+  const suggestionsMatch = raw.match(/##\s*.*建议[\s\S]*?(?=##|$)/);
+  const improvementsMatch = raw.match(/##\s*.*改进[\s\S]*?(?=##|$)/);
+
+  const extractBullets = (input: string | undefined): string[] => {
+    if (!input) return [];
+    return input
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('- '))
+      .map((line) => line.replace(/^- /, '').trim())
+      .filter(Boolean);
+  };
+
+  const highlights = extractBullets(highlightsMatch?.[0]);
+  const suggestions = extractBullets(suggestionsMatch?.[0]);
+  const improvements = extractBullets(improvementsMatch?.[0]);
+
+  const summary =
+    raw
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith('#') && !line.startsWith('-')) ||
+    `已生成${period}复盘摘要`;
+
+  return {
+    summary,
+    highlights: highlights.length > 0 ? highlights : improvements.slice(0, 2),
+    suggestions: suggestions.length > 0 ? suggestions : ['保持稳定学习节奏，按周复盘并微调任务难度。'],
+    // 无法精确区分 AI 与模板，按是否包含分段标题做近似判断
+    isFallback: !raw.includes('##'),
+  };
 }
 
 interface ReviewData {
@@ -94,9 +151,31 @@ interface ReviewData {
   }>;
 }
 
+function extractAxiosErrorDetail(error: unknown): {
+  status?: number;
+  requestId?: string;
+  message?: string;
+} {
+  if (!axios.isAxiosError(error)) {
+    return {};
+  }
+
+  const status = error.response?.status;
+  const data = error.response?.data;
+  const requestId = data?.request_id || data?.requestId;
+  const message =
+    data?.error?.message ||
+    data?.message ||
+    (typeof data === 'string' ? data : undefined) ||
+    error.message;
+
+  return { status, requestId, message };
+}
+
 async function callAIForReview(
   apiKey: string,
   baseURL: string,
+  model: string,
   data: ReviewData,
 ): Promise<string> {
   const periodLabel = data.period === 'weekly' ? '本周' : '本月';
@@ -126,7 +205,7 @@ ${data.goalSummaries.map((g) => `  - ${g.title}（${g.status}，进度 ${g.progr
   const response = await axios.post(
     `${baseURL}/chat/completions`,
     {
-      model: 'openai/gpt-3.5-turbo',
+      model,
       messages: [
         { role: 'system', content: '你是一位专业的学习教练，擅长分析学习数据并给出有针对性的建议。' },
         { role: 'user', content: prompt },

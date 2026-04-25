@@ -17,6 +17,8 @@ router.get(
   [
     query('startDate').optional().isISO8601(),
     query('endDate').optional().isISO8601(),
+    query('from').optional().isISO8601(),
+    query('to').optional().isISO8601(),
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
   ],
@@ -32,8 +34,10 @@ router.get(
       }
 
       const userId = req.user!.id;
-      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const startDateRaw = (req.query.startDate as string) || (req.query.from as string);
+      const endDateRaw = (req.query.endDate as string) || (req.query.to as string);
+      const startDate = startDateRaw ? new Date(startDateRaw) : undefined;
+      const endDate = endDateRaw ? new Date(endDateRaw) : undefined;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = (page - 1) * limit;

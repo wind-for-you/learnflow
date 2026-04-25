@@ -20,6 +20,8 @@ export interface LearningPlan {
   durationWeeks: number;
   weeklyPlans: WeeklyPlan[];
   mermaidCode: string;
+  isFallback?: boolean;
+  fallbackReason?: string;
 }
 
 export interface GeneratePlanRequest {
@@ -37,10 +39,12 @@ export interface GeneratePlanRequest {
 class AIService {
   private apiKey: string;
   private baseURL: string;
+  private model: string;
 
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY || '';
     this.baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+    this.model = process.env.OPENROUTER_MODEL || 'qwen3.6-plus';
     
     if (!this.apiKey) {
       logger.warn('OpenRouter API Key 未配置，AI 功能将不可用');
@@ -52,7 +56,7 @@ class AIService {
    */
   async generateLearningPlan(request: GeneratePlanRequest): Promise<LearningPlan> {
     if (!this.apiKey) {
-      throw new Error('AI 服务未配置，请联系管理员');
+      return this.generateFallbackPlan(request, 'AI 服务未配置，已生成模板计划');
     }
 
     try {
@@ -61,21 +65,53 @@ class AIService {
       
       return this.parsePlanResponse(response, request);
     } catch (error) {
-      console.error('生成学习计划失败:', error);
+      const aiErrorDetail = this.extractAiErrorDetail(error);
+      logger.error('生成学习计划失败，使用模板回退', {
+        status: aiErrorDetail.status,
+        requestId: aiErrorDetail.requestId,
+        message: aiErrorDetail.message,
+      });
       
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         if (status === 401) {
-          throw new Error('AI 服务认证失败，请检查 API Key');
+          return this.generateFallbackPlan(request, 'AI 服务认证失败，已切换为模板计划');
+        } else if (status === 403) {
+          return this.generateFallbackPlan(request, 'AI 服务无访问权限，已切换为模板计划');
+        } else if (status === 400) {
+          const detailMessage = aiErrorDetail.message ? `：${aiErrorDetail.message}` : '';
+          return this.generateFallbackPlan(request, `AI 请求参数错误${detailMessage}，已切换为模板计划`);
         } else if (status === 429) {
-          throw new Error('AI 服务请求频率过高，请稍后重试');
+          return this.generateFallbackPlan(request, 'AI 服务请求频率过高，已切换为模板计划');
         } else if (status && status >= 500) {
-          throw new Error('AI 服务暂时不可用，请稍后重试');
+          return this.generateFallbackPlan(request, 'AI 服务暂时不可用，已切换为模板计划');
         }
+        return this.generateFallbackPlan(request, 'AI 服务调用失败，已切换为模板计划');
       }
       
-      throw new Error('生成学习计划失败，请重试');
+      return this.generateFallbackPlan(request, '生成学习计划失败，已切换为模板计划');
     }
+  }
+
+  private extractAiErrorDetail(error: unknown): {
+    status?: number;
+    requestId?: string;
+    message?: string;
+  } {
+    if (!axios.isAxiosError(error)) {
+      return {};
+    }
+
+    const status = error.response?.status;
+    const data = error.response?.data;
+    const requestId = data?.request_id || data?.requestId;
+    const message =
+      data?.error?.message ||
+      data?.message ||
+      (typeof data === 'string' ? data : undefined) ||
+      error.message;
+
+    return { status, requestId, message };
   }
 
   /**
@@ -146,7 +182,7 @@ ${specificRequirements ? `**特殊要求**: ${specificRequirements}` : ''}
     const response = await axios.post(
       `${this.baseURL}/chat/completions`,
       {
-        model: 'openai/gpt-3.5-turbo', // 可以根据需要切换模型
+        model: this.model,
         messages: [
           {
             role: 'system',
@@ -167,7 +203,7 @@ ${specificRequirements ? `**特殊要求**: ${specificRequirements}` : ''}
           'HTTP-Referer': 'https://learnflow.app',
           'X-Title': 'LearnFlow Learning Platform',
         },
-        timeout: 30000, // 30秒超时
+        timeout: 60000, // 百炼大模型偶发慢响应，放宽超时避免误降级
       }
     );
 
@@ -288,7 +324,7 @@ ${specificRequirements ? `**特殊要求**: ${specificRequirements}` : ''}
   /**
    * 生成备用学习计划（当 AI 服务不可用时）
    */
-  private generateFallbackPlan(request: GeneratePlanRequest): LearningPlan {
+  private generateFallbackPlan(request: GeneratePlanRequest, reason?: string): LearningPlan {
     const { goal, durationWeeks, hoursPerWeek } = request;
     
     const weeklyPlans: WeeklyPlan[] = [];
@@ -322,6 +358,8 @@ ${specificRequirements ? `**特殊要求**: ${specificRequirements}` : ''}
       durationWeeks,
       weeklyPlans,
       mermaidCode: this.generateFallbackMermaid(durationWeeks),
+      isFallback: true,
+      fallbackReason: reason || 'AI 输出不可解析，已使用模板计划',
     };
   }
 

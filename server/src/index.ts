@@ -13,6 +13,11 @@ import aiTaskRoutes from './routes/aiTasks';
 import reviewRoutes from './routes/reviews';
 import achievementRoutes from './routes/achievements';
 import adaptiveRoutes from './routes/adaptive';
+import analyticsRoutes from './routes/analytics';
+import opsRoutes from './routes/ops';
+import agentTaskRoutes from './routes/agentTasks';
+import agentMemoryRoutes from './routes/agentMemories';
+import { metricsMiddleware } from './middleware/metrics';
 import prisma from './shared/prisma';
 import logger from './shared/logger';
 import { validateEnv } from './shared/env';
@@ -41,6 +46,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(metricsMiddleware);
 
 // 速率限制 - 开发环境放宽限制
 const limiter = rateLimit({
@@ -101,6 +107,10 @@ app.use('/api/ai-tasks', aiTaskRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/adaptive', adaptiveRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/ops', opsRoutes);
+app.use('/api/agent-tasks', agentTaskRoutes);
+app.use('/api/agent-memories', agentMemoryRoutes);
 
 // 404 处理
 app.use('*', (req, res) => {
@@ -205,6 +215,7 @@ async function startServer() {
       logger.info(`客户端地址: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
       logger.info(`JWT: ${process.env.JWT_SECRET ? '已配置' : '未配置'}`);
       logger.info(`AI 服务: ${process.env.OPENROUTER_API_KEY ? '已配置' : '未配置'}`);
+      logger.info(`Redis: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`);
     });
   } catch (error) {
     logger.error('服务器启动失败', error as Error);

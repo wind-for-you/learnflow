@@ -1,7 +1,10 @@
 import { Router, Response } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { grayReleaseGuard } from '../middleware/grayRelease';
 import prisma from '../shared/prisma';
+import { generateAIReviewSummary } from '../services/aiReviewService';
+import { ensureStructuredReviewSummary } from '../services/aiSchemaGuard';
 
 const router = Router();
 
@@ -135,5 +138,35 @@ router.delete('/:id', [param('id').isString().notEmpty()], async (req: Authentic
     res.status(500).json({ error: 'Server Error', message: '删除复盘失败' });
   }
 });
+
+/**
+ * POST /api/reviews/ai-summary
+ * 生成结构化 AI 复盘摘要
+ */
+router.post(
+  '/ai-summary',
+  grayReleaseGuard,
+  [body('period').optional().isIn(['weekly', 'monthly', 'quarterly'])],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ error: 'Validation Error', details: errors.array() });
+        return;
+      }
+
+      const period = (req.body.period as 'weekly' | 'monthly' | 'quarterly') || 'weekly';
+      const data = ensureStructuredReviewSummary(await generateAIReviewSummary(req.user!.id, period));
+
+      res.json({
+        success: true,
+        data,
+      });
+    } catch (error) {
+      console.error('生成 AI 复盘摘要失败:', error);
+      res.status(500).json({ error: 'Server Error', message: '生成 AI 复盘摘要失败' });
+    }
+  },
+);
 
 export default router;

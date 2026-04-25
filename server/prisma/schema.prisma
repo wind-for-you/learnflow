@@ -24,6 +24,34 @@ enum GoalStatus {
   CANCELLED
 }
 
+enum AgentTaskType {
+  PLAN_GENERATION
+  REVIEW_SUMMARY
+  COACH_SUGGESTION
+  ADAPTIVE_ADJUSTMENT
+}
+
+enum AgentType {
+  PLANNER
+  REVIEWER
+  COACH
+  ADAPTER
+}
+
+enum AgentTaskState {
+  UNINITIALIZED
+  RUNNING
+  COMPLETED
+  ERROR
+  CANCELLED
+}
+
+enum ProviderType {
+  DASHSCOPE
+  OPENAI
+  ANTHROPIC
+}
+
 // 用户模型
 model User {
   id        String   @id @default(cuid())
@@ -43,6 +71,8 @@ model User {
   checkins Checkin[]
   reviews  Review[]
   achievements UserAchievement[]
+  agentTasks AgentTask[]
+  agentMemories AgentMemory[]
 
   @@map("users")
 }
@@ -185,4 +215,44 @@ model UserAchievement {
 
   @@unique([userId, achievementId])
   @@map("user_achievements")
+}
+
+model AgentTask {
+  id           String        @id @default(cuid())
+  userId       String
+  taskType     AgentTaskType
+  agentType    AgentType
+  providerType ProviderType  @default(DASHSCOPE)
+  state        AgentTaskState @default(UNINITIALIZED)
+  input        Json
+  output       Json?
+  errorMessage String?
+  requestId    String?
+  costTokens   Int?
+  costUSD      Float?
+  startedAt    DateTime?
+  endedAt      DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, state])
+  @@index([createdAt])
+  @@map("agent_tasks")
+}
+
+model AgentMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([updatedAt])
+  @@map("agent_memories")
 }

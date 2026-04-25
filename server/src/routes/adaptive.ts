@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
-import { param, validationResult } from 'express-validator';
+import { body, param, validationResult } from 'express-validator';
+import { AgentTaskType, AgentType, ProviderType } from '@prisma/client';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { analyzeAndSuggest } from '../services/adaptiveService';
+import { agentTaskService } from '../services/agentTaskService';
 
 const router = Router();
 
@@ -12,7 +14,10 @@ const router = Router();
 router.post(
   '/:planId/analyze',
   requireAuth,
-  [param('planId').isString().notEmpty().withMessage('planId 不能为空')],
+  [
+    param('planId').isString().notEmpty().withMessage('planId 不能为空'),
+    body('useAgentRuntime').optional().isBoolean().withMessage('useAgentRuntime 必须是布尔值'),
+  ],
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const errors = validationResult(req);
@@ -23,6 +28,23 @@ router.post(
 
       const userId = req.user!.id;
       const planId = req.params.planId as string;
+
+      const useAgentRuntime = Boolean(req.body.useAgentRuntime);
+      if (useAgentRuntime) {
+        const task = await agentTaskService.createTask({
+          userId,
+          taskType: AgentTaskType.ADAPTIVE_ADJUSTMENT,
+          agentType: AgentType.ADAPTER,
+          providerType: ProviderType.DASHSCOPE,
+          input: { planId },
+        });
+
+        res.status(202).json({
+          message: '自适应分析任务已提交到 Agent Runtime',
+          task,
+        });
+        return;
+      }
 
       const suggestion = await analyzeAndSuggest(userId, planId);
       res.json({ success: true, suggestion });

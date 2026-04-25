@@ -32,9 +32,12 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-gpt-3.5-turbo}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - learnflow-network
     healthcheck:
@@ -55,6 +58,15 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - learnflow-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: learnflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
     networks:
       - learnflow-network
 

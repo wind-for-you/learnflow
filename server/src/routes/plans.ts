@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
+import { AgentTaskType, AgentType, ProviderType } from '@prisma/client';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { aiService, GeneratePlanRequest } from '../services/aiService';
+import { agentTaskService } from '../services/agentTaskService';
 import prisma from '../shared/prisma';
 
 const router = Router();
@@ -23,6 +25,7 @@ router.post(
     body('durationWeeks').isInt({ min: 1, max: 52 }).withMessage('计划持续时间必须在1-52周之间'),
     body('preferredStyle').optional().isIn(['practical', 'theoretical', 'mixed']),
     body('specificRequirements').optional().isLength({ max: 1000 }),
+    body('useAgentRuntime').optional().isBoolean().withMessage('useAgentRuntime 必须是布尔值'),
   ],
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -63,6 +66,26 @@ router.post(
         preferredStyle,
         specificRequirements,
       };
+
+      const useAgentRuntime = Boolean(req.body.useAgentRuntime);
+      if (useAgentRuntime) {
+        const task = await agentTaskService.createTask({
+          userId,
+          taskType: AgentTaskType.PLAN_GENERATION,
+          agentType: AgentType.PLANNER,
+          providerType: ProviderType.DASHSCOPE,
+          input: {
+            goalId,
+            ...planRequest,
+          },
+        });
+
+        res.status(202).json({
+          message: '计划生成任务已提交到 Agent Runtime',
+          task,
+        });
+        return;
+      }
 
       // 调用 AI 服务生成计划
       const generatedPlan = await aiService.generateLearningPlan(planRequest);
@@ -120,10 +143,14 @@ router.post(
       });
 
       res.status(201).json({
-        message: '学习计划生成成功',
+        message: generatedPlan.isFallback
+          ? generatedPlan.fallbackReason || 'AI 不可用，已生成模板学习计划'
+          : '学习计划生成成功',
         plan: {
           ...fullPlan,
           weeklyPlans: generatedPlan.weeklyPlans,
+          isFallback: Boolean(generatedPlan.isFallback),
+          fallbackReason: generatedPlan.fallbackReason,
         },
       });
     } catch (error) {
@@ -402,6 +429,82 @@ router.put(
       });
     } catch (error) {
       console.error('更新计划失败:', error);
+      res.status(500).json({
+        error: 'Server Error',
+        message: '更新计划失败',
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/plans/:id
+ * 合同兼容：通过 PATCH 更新计划
+ */
+router.patch(
+  '/:id',
+  [
+    param('id').isString().notEmpty(),
+    body('title').optional().isLength({ min: 1, max: 200 }),
+    body('mermaidCode').optional().isString(),
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({
+          error: 'Validation Error',
+          details: errors.array(),
+        });
+        return;
+      }
+
+      const userId = req.user!.id;
+      const planId = req.params.id;
+      const { title, mermaidCode } = req.body;
+
+      const existingPlan = await prisma.plan.findFirst({
+        where: {
+          id: planId,
+          userId,
+        },
+      });
+
+      if (!existingPlan) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: '计划不存在',
+        });
+        return;
+      }
+
+      const plan = await prisma.plan.update({
+        where: { id: planId },
+        data: {
+          ...(title && { title }),
+          ...(mermaidCode && { mermaidCode }),
+        },
+        include: {
+          goal: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          _count: {
+            select: {
+              tasks: true,
+            },
+          },
+        },
+      });
+
+      res.json({
+        message: '计划更新成功',
+        plan,
+      });
+    } catch (error) {
+      console.error('PATCH 更新计划失败:', error);
       res.status(500).json({
         error: 'Server Error',
         message: '更新计划失败',

@@ -256,6 +256,100 @@ router.put(
 );
 
 /**
+ * PATCH /api/tasks/:id
+ * 合同兼容：通过 PATCH 更新任务完成状态
+ */
+router.patch(
+  '/:id',
+  [
+    param('id').isString().notEmpty(),
+    body('completed').isBoolean().withMessage('completed 必须是布尔值'),
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({
+          error: 'Validation Error',
+          details: errors.array(),
+        });
+        return;
+      }
+
+      const userId = req.user!.id;
+      const taskId = req.params.id;
+      const { completed } = req.body;
+
+      const existingTask = await prisma.task.findFirst({
+        where: {
+          id: taskId,
+          userId,
+        },
+        include: {
+          plan: {
+            include: {
+              goal: true,
+            },
+          },
+        },
+      });
+
+      if (!existingTask) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: '任务不存在',
+        });
+        return;
+      }
+
+      const task = await prisma.task.update({
+        where: { id: taskId },
+        data: { completed },
+        include: {
+          plan: {
+            select: {
+              id: true,
+              title: true,
+              goalId: true,
+            },
+          },
+        },
+      });
+
+      if (existingTask.plan.goal) {
+        const goalTasks = await prisma.task.findMany({
+          where: {
+            plan: {
+              goalId: existingTask.plan.goalId,
+            },
+            userId,
+          },
+        });
+
+        const completedCount = goalTasks.filter((t) => t.completed || t.id === taskId).length;
+        const progress = goalTasks.length > 0 ? Math.round((completedCount / goalTasks.length) * 100) : 0;
+
+        await prisma.goal.update({
+          where: { id: existingTask.plan.goalId },
+          data: { progress },
+        });
+      }
+
+      res.json({
+        message: completed ? '任务已完成' : '任务标记为未完成',
+        task,
+      });
+    } catch (error) {
+      console.error('PATCH 更新任务状态失败:', error);
+      res.status(500).json({
+        error: 'Server Error',
+        message: '更新任务状态失败',
+      });
+    }
+  }
+);
+
+/**
  * POST /api/tasks
  * 创建新任务
  */
