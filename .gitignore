@@ -14,6 +14,16 @@ env.production
 docker-compose.override.yml
 .dockerignore
 
+# Docker 镜像文件
+*.tar
+
+# Nginx 配置文件（避免误提交）
+nginx.conf
+nginx.production.conf
+
+# PostgreSQL 配置文件（避免误提交到根目录）
+postgresql.conf
+
 # 日志文件
 *.log
 logs/
