@@ -11,7 +11,6 @@ import {
   SparklesIcon
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
-import { useAuth } from '../contexts/AuthContext';
 import { planApi, taskApi, aiTaskApi } from '../services/api';
 import MermaidRenderer from './MermaidRenderer';
 import type { Plan, WeeklyPlan, Task } from '../types';
@@ -19,7 +18,6 @@ import type { Plan, WeeklyPlan, Task } from '../types';
 export default function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // 状态管理
   const [plan, setPlan] = useState<Plan | null>(null);

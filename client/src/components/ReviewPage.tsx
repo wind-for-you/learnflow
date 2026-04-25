@@ -5,6 +5,7 @@ import {
   TrashIcon,
   DocumentTextIcon,
   XMarkIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { reviewApi } from '../services/api';
 import { useToast } from './Toast';
@@ -39,6 +40,7 @@ export default function ReviewPage() {
   const [filter, setFilter] = useState<PeriodFilter>('all');
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formPeriod, setFormPeriod] = useState<'weekly' | 'monthly' | 'quarterly'>('weekly');
@@ -84,6 +86,30 @@ export default function ReviewPage() {
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateAIContent = async () => {
+    try {
+      setIsGeneratingAI(true);
+      const summary = await reviewApi.generateAISummary(formPeriod);
+      const generatedContent = [
+        `【总结】${summary.summary}`,
+        '',
+        '【亮点】',
+        ...summary.highlights.map(item => `- ${item}`),
+        '',
+        '【建议】',
+        ...summary.suggestions.map(item => `- ${item}`),
+      ].join('\n');
+
+      setFormContent(generatedContent);
+      toast.success(summary.isFallback ? '已生成基础复盘草稿（回退模式）' : 'AI 复盘草稿生成成功');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'AI 生成复盘失败';
+      toast.error(msg);
+    } finally {
+      setIsGeneratingAI(false);
     }
   };
 
@@ -154,6 +180,26 @@ export default function ReviewPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   复盘内容
                 </label>
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={handleGenerateAIContent}
+                    disabled={isGeneratingAI || isSubmitting}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border border-primary-300 text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-primary-700 dark:text-primary-300 dark:bg-primary-900/20 dark:hover:bg-primary-900/40"
+                    type="button"
+                  >
+                    {isGeneratingAI ? (
+                      <>
+                        <span className="spinner w-3 h-3 mr-1.5" />
+                        AI 生成中...
+                      </>
+                    ) : (
+                      <>
+                        <SparklesIcon className="h-4 w-4 mr-1.5" />
+                        AI 生成复盘草稿
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   value={formContent}
                   onChange={e => setFormContent(e.target.value)}

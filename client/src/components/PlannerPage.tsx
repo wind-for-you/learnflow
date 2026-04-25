@@ -30,6 +30,7 @@ export default function PlannerPage() {
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showPlanForm, setShowPlanForm] = useState(false);
 
   // 表单状态
@@ -110,6 +111,7 @@ export default function PlannerPage() {
     try {
       setIsGenerating(true);
       setError(null);
+      setNotice(null);
 
       // 验证表单
       if (!formData.goal.trim()) {
@@ -164,6 +166,9 @@ export default function PlannerPage() {
       console.log('转换后的Mermaid代码:', response.plan.mermaidCode?.replace(/\\n/g, '\n'));
       
       setGeneratedPlan(response.plan);
+      if (response.plan.isFallback) {
+        setNotice(response.plan.fallbackReason || response.message || 'AI 当前不可用，已自动生成模板学习计划');
+      }
       
       // 如果计划生成成功，可以选择跳转到计划详情页
       // navigate(`/plans/${response.plan.id}`);
@@ -264,6 +269,20 @@ export default function PlannerPage() {
                   生成失败
                 </h3>
                 <p className="mt-1 text-sm text-error-700 dark:text-error-300">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {notice && (
+          <div className="mb-6 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-md p-4">
+            <div className="flex">
+              <ExclamationTriangleIcon className="h-5 w-5 text-warning-500 mt-0.5" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-warning-800 dark:text-warning-200">
+                  已启用模板降级
+                </h3>
+                <p className="mt-1 text-sm text-warning-700 dark:text-warning-300">{notice}</p>
               </div>
             </div>
           </div>

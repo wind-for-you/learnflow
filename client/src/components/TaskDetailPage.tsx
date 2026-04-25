@@ -9,14 +9,12 @@ import {
   BookOpenIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
-import { useAuth } from '../contexts/AuthContext';
 import { taskApi } from '../services/api';
 import type { Task } from '../types';
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // 状态管理
   const [task, setTask] = useState<Task | null>(null);

@@ -10,16 +10,13 @@ import {
   BookOpenIcon,
   ChartBarIcon,
   EyeIcon,
-  PlusIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../contexts/AuthContext';
 import { goalApi, planApi } from '../services/api';
 import type { Goal, Plan } from '../types';
 
 export default function GoalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // 状态管理
   const [goal, setGoal] = useState<Goal | null>(null);

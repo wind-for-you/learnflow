@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
@@ -9,17 +9,14 @@ import {
   ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { useAuth } from '../contexts/AuthContext';
 import { checkinApi, goalApi, planApi } from '../services/api';
 import type { Checkin, CheckinFormData, Goal, Plan } from '../types';
 
 export default function CheckinPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
 
   // 状态管理
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -50,7 +47,6 @@ export default function CheckinPage() {
 
   const loadTodayCheckin = async () => {
     try {
-      setIsLoading(true);
       const response = await checkinApi.getTodayCheckin();
       
       if (response.checkin) {
@@ -67,7 +63,6 @@ export default function CheckinPage() {
     } catch (error) {
       console.error('加载今日打卡失败:', error);
     } finally {
-      setIsLoading(false);
     }
   };
 

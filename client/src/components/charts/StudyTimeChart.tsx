@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import { format, subDays, startOfDay } from 'date-fns';
 import { defaultChartOptions, darkChartOptions, chartColors, createGradient } from './ChartSetup';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, addWeeks } from 'date-fns';
 import {
@@ -8,15 +8,12 @@ import {
   SparklesIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../contexts/AuthContext';
 import { goalApi } from '../services/api';
 import type { Goal, GoalFormData } from '../types';
 
 export default function GoalFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
-  const { user } = useAuth();
-  
   const isEdit = !!id;
 
   // 状态管理

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
@@ -8,6 +7,8 @@ import {
   DocumentTextIcon,
   ClipboardDocumentCheckIcon,
   TrophyIcon,
+  ChartBarIcon,
+  ServerStackIcon,
 } from '@heroicons/react/24/outline';
 import UserMenu from './UserMenu';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,6 +50,16 @@ export default function Navbar() {
       name: '复盘',
       href: '/reviews',
       icon: ClipboardDocumentCheckIcon,
+    },
+    {
+      name: '分析',
+      href: '/analytics',
+      icon: ChartBarIcon,
+    },
+    {
+      name: '任务中心',
+      href: '/task-center',
+      icon: ServerStackIcon,
     },
     {
       name: '成就',
@@ -132,7 +143,7 @@ export default function Navbar() {
 
       {/* 移动端导航（底部固定） */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {navigationLinks.map((link) => {
             const Icon = link.icon;
             const isActive = isActiveRoute(link.href);

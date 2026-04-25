@@ -33,6 +33,8 @@ export interface Plan {
   durationWeeks: number;
   mermaidCode?: string;
   content?: string;
+  isFallback?: boolean;
+  fallbackReason?: string;
   progress?: number; // 0-100 百分比
   userId: string;
   createdAt: string;
@@ -110,6 +112,46 @@ export interface Review {
   period: 'weekly' | 'monthly' | 'quarterly';
   content: string;
   userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AIReviewSummary {
+  summary: string;
+  highlights: string[];
+  suggestions: string[];
+  isFallback: boolean;
+}
+
+export interface AnalyticsOverview {
+  activeDays: number;
+  completionRate: number;
+  studyMinutes: number;
+  streak: number;
+}
+
+export interface WeeklyReport {
+  period: 'weekly';
+  metrics: {
+    totalMinutes: number;
+    totalCheckins: number;
+    averageRating: number;
+    completionRate: number;
+  };
+  aiSummary: AIReviewSummary;
+}
+
+export interface AgentTask {
+  id: string;
+  userId: string;
+  taskType: 'PLAN_GENERATION' | 'REVIEW_SUMMARY' | 'COACH_SUGGESTION' | 'ADAPTIVE_ADJUSTMENT';
+  agentType: 'PLANNER' | 'REVIEWER' | 'COACH' | 'ADAPTER';
+  providerType: 'DASHSCOPE' | 'OPENAI' | 'ANTHROPIC';
+  state: 'UNINITIALIZED' | 'RUNNING' | 'COMPLETED' | 'ERROR' | 'CANCELLED';
+  input: Record<string, unknown>;
+  output?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+  requestId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

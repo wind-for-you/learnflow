@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { defaultChartOptions, darkChartOptions, chartColors } from './ChartSetup';
 import type { Goal } from '../../types';

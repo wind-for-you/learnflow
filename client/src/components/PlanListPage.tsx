@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   PlusIcon,
   CalendarDaysIcon,
@@ -12,15 +12,12 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../contexts/AuthContext';
 import { planApi } from '../services/api';
 import { useToast } from './Toast';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import type { Plan } from '../types';
 
 export default function PlanListPage() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const toast = useToast();
 
   const handleDeletePlan = async (planId: string, title: string) => {

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './components/Toast';
@@ -22,6 +22,8 @@ const GoalDetailPage = lazy(() => import('./components/GoalDetailPage'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const ReviewPage = lazy(() => import('./components/ReviewPage'));
 const AchievementPage = lazy(() => import('./components/AchievementPage'));
+const AnalyticsPage = lazy(() => import('./components/AnalyticsPage'));
+const TaskCenterPage = lazy(() => import('./components/TaskCenterPage'));
 
 // 受保护的路由组件
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -93,6 +95,8 @@ function AppRoutes() {
       <Route path="/goals" element={<LazyProtected><GoalListPage /></LazyProtected>} />
       <Route path="/profile" element={<LazyProtected><ProfilePage /></LazyProtected>} />
       <Route path="/reviews" element={<LazyProtected><ReviewPage /></LazyProtected>} />
+      <Route path="/analytics" element={<LazyProtected><AnalyticsPage /></LazyProtected>} />
+      <Route path="/task-center" element={<LazyProtected><TaskCenterPage /></LazyProtected>} />
       <Route path="/achievements" element={<LazyProtected><AchievementPage /></LazyProtected>} />
 
       {/* 默认重定向 */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   PlusIcon,
@@ -11,12 +11,12 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { goalApi, checkinApi, taskApi } from '../services/api';
+import { goalApi, checkinApi, taskApi, analyticsApi } from '../services/api';
 import StudyTimeChart from './charts/StudyTimeChart';
 import ProgressChart from './charts/ProgressChart';
 import CheckinCalendar from './charts/CheckinCalendar';
 import PomodoroTimer from './PomodoroTimer';
-import type { Goal, Checkin, Task, CheckinStats } from '../types';
+import type { Goal, Checkin, Task, CheckinStats, WeeklyReport } from '../types';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [checkinStats, setCheckinStats] = useState<CheckinStats | null>(null);
   const [todayCheckin, setTodayCheckin] = useState<Checkin | null>(null);
+  const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,12 +63,16 @@ export default function Dashboard() {
         tasksResponse,
         statsResponse,
         todayResponse,
+        analyticsOverviewResponse,
+        weeklyReportResponse,
       ] = await Promise.all([
         goalApi.getGoals({ limit: 10 }),
         checkinApi.getCheckins({ limit: 30 }), // 最近30天的打卡
         taskApi.getTasks({ limit: 10 }), // 最近10个任务
         checkinApi.getCheckinStats('month'), // 月度统计
         checkinApi.getTodayCheckin(), // 今日打卡
+        analyticsApi.getOverview('30d'),
+        analyticsApi.getWeeklyReport(),
       ]);
 
       setGoals(goalsResponse.goals);
@@ -76,6 +81,25 @@ export default function Dashboard() {
       setTodayTasks(getTodayTasks(tasksResponse.tasks));
       setCheckinStats(statsResponse);
       setTodayCheckin(todayResponse.checkin || null);
+      setWeeklyReport(weeklyReportResponse);
+
+      // 优先使用后端 analytics 概览数据作为统计卡片来源
+      const overview = analyticsOverviewResponse;
+      setCheckinStats(prev =>
+        prev
+          ? {
+              ...prev,
+              streaks: {
+                ...prev.streaks,
+                current: overview.streak,
+              },
+              overallStats: {
+                ...prev.overallStats,
+                totalHours: Math.round((overview.studyMinutes / 60) * 10) / 10,
+              },
+            }
+          : prev,
+      );
     } catch (error) {
       console.error('加载仪表板数据失败:', error);
       setError('加载数据失败，请刷新页面重试');
@@ -222,6 +246,36 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {weeklyReport && (
+          <div className="card mb-8 border border-primary-200 dark:border-primary-900/40">
+            <div className="card-header">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <SparklesIcon className="h-5 w-5 text-primary-600 mr-2" />
+                AI 周报摘要
+              </h3>
+            </div>
+            <div className="card-body space-y-3">
+              <p className="text-sm text-gray-700 dark:text-gray-300">{weeklyReport.aiSummary.summary}</p>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">本周亮点</p>
+                <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  {weeklyReport.aiSummary.highlights.slice(0, 2).map(item => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">下周建议</p>
+                <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  {weeklyReport.aiSummary.suggestions.slice(0, 2).map(item => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 快速操作 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
