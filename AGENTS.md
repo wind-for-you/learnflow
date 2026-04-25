@@ -5,6 +5,7 @@
 ### Project Overview
 
 LearnFlow is an AI-powered learning platform with a client/server architecture:
+
 - **Frontend**: React 19 + TypeScript + Vite (port 5173)
 - **Backend**: Node.js + Express + TypeScript + Prisma ORM (port 3000)
 - **Database**: PostgreSQL (port 5432)
@@ -25,9 +26,9 @@ Standard commands documented in `README.md` and `package.json`. Key points:
 2. **Prisma client must be generated** after installing server dependencies: `cd server && npx prisma generate`
 3. **Database schema sync**: Use `cd server && npx prisma db push` to push schema to a fresh database (no migration files exist in the repo).
 4. **Environment files** (`.env`) are gitignored. For local dev, create:
-   - `server/.env` with `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=development`, `PORT=3000`
-   - `client/.env` with `VITE_API_URL=http://localhost:3000/api`
-   - See `server/env.example` and `client/env.example` for templates.
+  - `server/.env` with `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=development`, `PORT=3000`
+  - `client/.env` with `VITE_API_URL=http://localhost:3000/api`
+  - See `server/env.example` and `client/env.example` for templates.
 5. **Pre-existing lint/type errors**: The codebase has known ESLint errors (mostly `no-explicit-any`, unused vars) and TypeScript strict-mode errors in the server. The `tsx watch` dev server and Vite dev server both bypass strict type checking, so these don't block development.
 6. **AI features are optional**: The `OPENROUTER_API_KEY` env var is optional. Without it, the server warns but all CRUD features (goals, tasks, check-ins) work normally. A fallback plan generator exists.
 7. **No lockfiles**: The repository has no `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml` — use `npm install` in both `client/` and `server/`.

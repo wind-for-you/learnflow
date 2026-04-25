@@ -93,12 +93,14 @@ docker compose up -d
 
 ## 3. 快速自检清单
 
-| 检查项           | 命令或方法 |
-|------------------|------------|
-| 看 backend 日志  | `docker compose logs backend` |
-| 是否设置 JWT     | `echo $JWT_SECRET` 或查看 `.env` 中 `JWT_SECRET` |
-| postgres 是否健康 | `docker compose ps` 中 postgres 为 healthy |
-| backend 当前状态 | `docker compose ps` 中 backend 为 Up 还是 Restarting |
+
+| 检查项           | 命令或方法                                            |
+| ------------- | ------------------------------------------------ |
+| 看 backend 日志  | `docker compose logs backend`                    |
+| 是否设置 JWT      | `echo $JWT_SECRET` 或查看 `.env` 中 `JWT_SECRET`     |
+| postgres 是否健康 | `docker compose ps` 中 postgres 为 healthy         |
+| backend 当前状态  | `docker compose ps` 中 backend 为 Up 还是 Restarting |
+
 
 ---
 

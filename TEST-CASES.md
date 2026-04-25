@@ -29,6 +29,8 @@ graph TD
     style J fill:#fff3e0
 ```
 
+
+
 ## 🎯 测试用例
 
 ### 测试用例 1: 基础环境检查
@@ -36,11 +38,13 @@ graph TD
 **测试目标**: 验证Docker环境是否正确安装和配置
 
 **测试步骤**:
+
 1. 检查Docker版本
 2. 检查Docker Compose版本
 3. 验证Docker服务状态
 
 **预期结果**:
+
 ```bash
 # 命令输出示例
 docker --version
@@ -62,11 +66,13 @@ docker info
 **测试目标**: 验证所有Docker服务能够正常启动
 
 **测试步骤**:
+
 1. 执行 `.\deploy.ps1 start`
 2. 检查容器状态
 3. 验证服务健康状态
 
 **预期结果**:
+
 ```bash
 docker-compose ps
 # 输出示例:
@@ -87,11 +93,13 @@ docker-compose ps
 **测试目标**: 验证容器间网络通信正常
 
 **测试步骤**:
+
 1. 检查Docker网络配置
 2. 测试容器间ping通信
 3. 验证端口访问
 
 **预期结果**:
+
 ```bash
 # 网络检查
 docker network ls
@@ -115,11 +123,13 @@ curl http://localhost:8080/health
 **测试目标**: 验证PostgreSQL数据库服务正常
 
 **测试步骤**:
+
 1. 检查数据库容器状态
 2. 测试数据库连接
 3. 验证Prisma迁移
 
 **预期结果**:
+
 ```bash
 # 数据库状态
 docker-compose exec postgres pg_isready -U learnflow_user -d learnflow
@@ -143,11 +153,13 @@ docker-compose exec backend npx prisma migrate status
 **测试目标**: 验证React前端应用正常加载
 
 **测试步骤**:
+
 1. 访问前端页面
 2. 检查静态资源加载
 3. 验证SPA路由
 
 **预期结果**:
+
 ```bash
 # 页面访问
 curl -I http://localhost:8080
@@ -173,11 +185,13 @@ curl -I http://localhost:8080/dashboard
 **测试目标**: 验证Express后端API服务正常
 
 **测试步骤**:
+
 1. 测试健康检查接口
 2. 验证API路由
 3. 检查CORS配置
 
 **预期结果**:
+
 ```bash
 # 健康检查
 curl http://localhost:8080/api/health
@@ -205,11 +219,13 @@ curl -X OPTIONS -H "Origin: http://localhost:3000" \
 **测试目标**: 验证系统在负载下的表现
 
 **测试步骤**:
+
 1. 使用Apache Bench进行并发测试
 2. 监控系统资源使用
 3. 检查响应时间
 
 **预期结果**:
+
 ```bash
 # 并发测试
 ab -n 1000 -c 10 http://localhost:8080/
@@ -235,11 +251,13 @@ docker stats --no-stream
 **测试目标**: 验证系统故障后的恢复能力
 
 **测试步骤**:
+
 1. 模拟容器崩溃
 2. 检查自动重启
 3. 验证服务恢复
 
 **预期结果**:
+
 ```bash
 # 模拟故障
 docker-compose kill backend
@@ -266,11 +284,13 @@ docker inspect learnflow-backend | grep -A 5 "RestartPolicy"
 **测试目标**: 验证系统安全配置
 
 **测试步骤**:
+
 1. 检查安全头配置
 2. 测试SQL注入防护
 3. 验证XSS防护
 
 **预期结果**:
+
 ```bash
 # 安全头检查
 curl -I http://localhost:8080
@@ -298,11 +318,13 @@ curl "http://localhost:8080/api/goals?title=<script>alert('xss')</script>"
 **测试目标**: 验证系统性能指标
 
 **测试步骤**:
+
 1. 测试页面加载时间
 2. 检查资源压缩
 3. 验证缓存策略
 
 **预期结果**:
+
 ```bash
 # 页面加载测试
 curl -w "@curl-format.txt" -o /dev/null -s http://localhost:8080
@@ -331,27 +353,30 @@ curl -I http://localhost:8080/assets/index.js
 ## 📋 测试执行清单
 
 ### 前置条件
-- [ ] Docker环境已安装
-- [ ] 项目代码已克隆
-- [ ] 端口8080、5432未被占用
+
+- Docker环境已安装
+- 项目代码已克隆
+- 端口8080、5432未被占用
 
 ### 测试执行
-- [ ] 执行测试用例1: 基础环境检查
-- [ ] 执行测试用例2: 服务启动测试
-- [ ] 执行测试用例3: 网络连通性测试
-- [ ] 执行测试用例4: 数据库连接测试
-- [ ] 执行测试用例5: 前端服务测试
-- [ ] 执行测试用例6: 后端API测试
-- [ ] 执行测试用例7: 负载测试
-- [ ] 执行测试用例8: 故障恢复测试
-- [ ] 执行测试用例9: 安全测试
-- [ ] 执行测试用例10: 性能测试
+
+- 执行测试用例1: 基础环境检查
+- 执行测试用例2: 服务启动测试
+- 执行测试用例3: 网络连通性测试
+- 执行测试用例4: 数据库连接测试
+- 执行测试用例5: 前端服务测试
+- 执行测试用例6: 后端API测试
+- 执行测试用例7: 负载测试
+- 执行测试用例8: 故障恢复测试
+- 执行测试用例9: 安全测试
+- 执行测试用例10: 性能测试
 
 ### 测试结果
-- [ ] 所有测试用例通过
-- [ ] 性能指标达标
-- [ ] 安全配置正确
-- [ ] 系统稳定运行
+
+- 所有测试用例通过
+- 性能指标达标
+- 安全配置正确
+- 系统稳定运行
 
 ## 🚨 故障排除
 
@@ -363,6 +388,7 @@ curl -I http://localhost:8080/assets/index.js
 4. **性能问题**: 调整资源限制和缓存策略
 
 ### 日志查看命令
+
 ```bash
 # 查看所有服务日志
 .\deploy.ps1 logs
@@ -380,6 +406,7 @@ docker-compose logs -f backend
 ---
 
 **注意**: 在生产环境中执行这些测试时，请确保：
+
 - 在测试环境中进行，避免影响生产数据
 - 监控系统资源使用情况
 - 记录测试结果和性能指标
