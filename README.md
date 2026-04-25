@@ -49,16 +49,26 @@
 - PostgreSQL 15+
 - Docker & Docker Compose
 
-### 本地开发
+### Monorepo 快速启动（推荐）
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/learnflow.git
+git clone https://github.com/xlj127317/learnflow.git
 cd learnflow
 
-# 安装依赖
-cd client && npm install
-cd ../server && npm install
+# 一键安装依赖并启动
+npm run setup
+
+# 或分步执行
+npm install          # 安装所有 workspace 依赖
+npm run dev          # 同时启动前端和后端
+```
+
+### 本地开发
+
+```bash
+# 安装依赖（根目录执行一次即可）
+npm install
 
 # 配置环境变量
 cp server/.env.example server/.env
@@ -67,16 +77,14 @@ cp server/.env.example server/.env
 # 启动数据库
 docker-compose up postgres -d
 
-# 启动后端服务
-cd server
-npm run dev
+# 启动后端服务（新终端）
+npm run dev:server
 
-# 启动前端服务
-cd ../client
-npm run dev
+# 启动前端服务（新终端）
+npm run dev:client
 ```
 
-### Docker部署
+### Docker 部署
 
 ```bash
 # 启动所有服务
@@ -91,18 +99,22 @@ docker-compose logs -f
 
 ### 生产环境部署
 
-针对2核4GB服务器的优化部署方案：
+针对 2 核 4GB 服务器的优化部署方案：
 
 ```bash
 # 安装系统环境
-./install-debian.sh
+chmod +x deploy/scripts/install-debian.sh
+./deploy/scripts/install-debian.sh
 
 # 部署应用
-./deploy-debian.sh start
+chmod +x deploy/scripts/deploy-debian.sh
+./deploy/scripts/deploy-debian.sh start
 
 # 查看状态
-./deploy-debian.sh status
+./deploy/scripts/deploy-debian.sh status
 ```
+
+完整部署文档：[DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## 📖 使用指南
 
@@ -160,41 +172,52 @@ npx prisma studio
 
 ```
 learnflow/
-├── client/                 # 前端React应用
+├── client/                 # 前端 React 应用
 │   ├── src/
-│   │   ├── components/    # React组件
-│   │   ├── contexts/      # React上下文
-│   │   ├── services/      # API服务
-│   │   └── types/         # TypeScript类型定义
-│   ├── Dockerfile         # 前端Docker镜像
-│   └── nginx.conf         # Nginx配置
-├── server/                 # 后端Node.js应用
+│   │   ├── components/    # React 组件
+│   │   ├── contexts/      # React 上下文
+│   │   ├── hooks/         # 自定义 Hooks
+│   │   ├── services/      # API 服务
+│   │   ├── types/         # TypeScript 类型定义
+│   │   └── utils/         # 工具函数
+│   ├── Dockerfile
+│   └── nginx.conf
+├── server/                 # 后端 Node.js 应用
 │   ├── src/
-│   │   ├── routes/        # API路由
+│   │   ├── routes/        # API 路由
 │   │   ├── services/      # 业务逻辑服务
 │   │   ├── middleware/    # 中间件
-│   │   └── config/        # 配置文件
-│   ├── prisma/            # 数据库Schema和迁移
-│   └── Dockerfile         # 后端Docker镜像
-├── docker-compose.yml      # Docker服务编排
-├── deploy-debian.sh        # Debian服务器部署脚本
-├── install-debian.sh       # 系统环境安装脚本
-└── README.md              # 项目说明文档
+│   │   ├── config/        # 配置文件
+│   │   ├── shared/        # 共享工具
+│   │   └── types/         # TypeScript 类型
+│   ├── prisma/            # 数据库 Schema
+│   └── Dockerfile
+├── deploy/                 # 部署相关文件
+│   ├── scripts/           # 部署脚本
+│   │   ├── deploy-debian.sh
+│   │   ├── install-debian.sh
+│   │   └── deploy.sh
+│   ├── DEPLOY-NGINX-SSL.md
+│   ├── nginx-learnflow.conf
+│   └── postgresql.conf
+├── package.json            # Monorepo 根配置
+├── docker-compose.yml      # Docker 服务编排
+├── README.md               # 项目说明
+├── DEPLOYMENT.md           # 部署指南
+└── DEPLOY-TROUBLESHOOTING.md  # 问题排查
 ```
 
 ## 🧪 测试
 
 ```bash
-# 运行前端测试
-cd client
+# 运行后端测试（Jest）
 npm test
 
-# 运行后端测试
-cd server
-npm test
+# 运行前端 lint
+npm run lint
 
-# 运行E2E测试
-npm run test:e2e
+# 类型检查
+npm run build
 ```
 
 ## 📈 性能优化
