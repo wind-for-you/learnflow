@@ -1,0 +1,11 @@
+Title,Description,Epic,Labels,Priority,Estimate,Assignee,AcceptanceCriteria
+"[P0] 补齐 reviews ai-summary 接口","新增 POST /api/reviews/ai-summary，支持 AI 周复盘摘要输出；失败时可回退模板摘要。","E-04","module:review,module:ai,type:feature,priority:p0","P0","2d","BE","接口返回 summary/highlights/suggestions；401/500 可测；文档同步"
+"[P0] 补齐 analytics 概览与周报接口","新增 GET /api/analytics/overview 和 /api/analytics/weekly-report。","E-04","module:analytics,module:ai,type:feature,priority:p0","P0","2d","BE","overview 返回 activeDays/completionRate/studyMinutes/streak；weekly-report 返回 period/metrics/aiSummary"
+"[P0] 兼容 PATCH /tasks/:id","新增 PATCH /api/tasks/:id 用于 completed 更新，并保持旧接口兼容。","E-01","module:task,type:feature,priority:p0","P0","1d","BE","PATCH 与 PUT /:id/complete 行为一致；不破坏现有前端"
+"[P0] 兼容 PATCH /plans/:id","新增 PATCH /api/plans/:id，保持与 PUT 行为一致。","E-01","module:plan,type:feature,priority:p0","P0","1d","BE","PATCH 可更新 title/mermaidCode；返回结构稳定"
+"[P0] Checkins 支持 from/to 查询参数","GET /api/checkins 同时支持 from/to 与 startDate/endDate。","E-01","module:checkin,type:feature,priority:p0","P0","0.5d","BE","两套参数均可查询同样结果"
+"[P0] Sprint1 核心链路 E2E 最小集","覆盖 注册->目标->计划->任务->打卡->复盘 主流程最小 5 条。","E-03","type:feature,module:release,priority:p0","P0","2d","QA","5 条用例可自动运行，失败可定位"
+"[P1] OpenAPI 与实际路由校准","根据差异清单更新 openapi.yaml 与后端实现对齐。","E-03","module:release,type:techdebt,priority:p1","P1","1d","BE","合同与实现不再有 P0 差异"
+"[P1] Dashboard 核心指标基础版","前端展示 completionRate/studyMinutes/streak 卡片。","E-01","module:analytics,type:feature,priority:p1","P1","1.5d","FE","页面可见并与接口联动"
+"[P1] AI fallback 异常覆盖测试","覆盖 401/429/5xx/JSON 解析失败场景。","E-02","module:ai,type:feature,priority:p1","P1","1d","QA","4 类异常有稳定测试结果"
+"[P1] 发布门禁检查清单自动化","将发布门禁清单脚本化，发布前自动校验。","E-03","module:release,type:techdebt,priority:p1","P1","1d","BE","脚本输出 pass/fail 与建议"

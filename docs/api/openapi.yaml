@@ -1,0 +1,844 @@
+openapi: 3.0.3
+info:
+  title: LearnFlow API
+  version: 1.0.0
+  description: |
+    LearnFlow MVP API contract (no payment integration).
+    This spec is generated from product planning docs and used for mock, SDK generation and contract testing.
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+tags:
+  - name: Auth
+  - name: Goals
+  - name: Plans
+  - name: Tasks
+  - name: AITasks
+  - name: Checkins
+  - name: Reviews
+  - name: Analytics
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Register success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /goals:
+    get:
+      tags: [Goals]
+      summary: Get goals
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Goals list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Goals]
+      summary: Create goal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalRequest'
+      responses:
+        '200':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /plans/generate:
+    post:
+      tags: [Plans]
+      summary: Generate AI learning plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePlanRequest'
+      responses:
+        '200':
+          description: Generated plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanGenerateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /plans/{id}:
+    get:
+      tags: [Plans]
+      summary: Get plan detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Plan detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Plans]
+      summary: Update plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlanRequest'
+      responses:
+        '200':
+          description: Plan updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: Get tasks by plan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: planId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tasks/{id}:
+    patch:
+      tags: [Tasks]
+      summary: Update task completion
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskUpdateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ai-tasks/{planId}:
+    get:
+      tags: [AITasks]
+      summary: Get AI task completion map
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: AI task completion map
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AITaskCompletionMapResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ai-tasks/{planId}/{taskKey}:
+    put:
+      tags: [AITasks]
+      summary: Update single AI task completion
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+        - name: taskKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: AI task completion updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ai-tasks/{planId}/batch:
+    put:
+      tags: [AITasks]
+      summary: Batch update AI task completions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchAITaskUpdateRequest'
+      responses:
+        '200':
+          description: Batch update success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /checkins:
+    post:
+      tags: [Checkins]
+      summary: Create checkin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckinRequest'
+      responses:
+        '200':
+          description: Checkin created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+    get:
+      tags: [Checkins]
+      summary: Get checkins by date range
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Checkin list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinListResponse'
+
+  /reviews:
+    post:
+      tags: [Reviews]
+      summary: Create review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '200':
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+
+  /reviews/ai-summary:
+    post:
+      tags: [Reviews]
+      summary: Generate AI review summary
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIReviewSummaryRequest'
+      responses:
+        '200':
+          description: AI summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIReviewSummaryResponse'
+
+  /analytics/overview:
+    get:
+      tags: [Analytics]
+      summary: Get analytics overview
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [7d, 30d, 90d]
+      responses:
+        '200':
+          description: Analytics overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsOverviewResponse'
+
+  /analytics/weekly-report:
+    get:
+      tags: [Analytics]
+      summary: Get weekly report
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Weekly report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyReportResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PlanId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate limited
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, name, password]
+      properties:
+        email: { type: string, format: email }
+        name: { type: string }
+        password: { type: string, minLength: 6 }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    User:
+      type: object
+      required: [id, email, name]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+
+    AuthResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          required: [token, user]
+          properties:
+            token: { type: string }
+            user:
+              $ref: '#/components/schemas/User'
+
+    CreateGoalRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        targetDate: { type: string, format: date }
+
+    Goal:
+      type: object
+      required: [id, title, status, progress]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [ACTIVE, COMPLETED, PAUSED, CANCELLED]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        targetDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    GoalResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/Goal'
+
+    GoalListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Goal'
+
+    GeneratePlanRequest:
+      type: object
+      required: [goal, currentLevel, hoursPerWeek, durationWeeks]
+      properties:
+        goal: { type: string }
+        currentLevel:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        hoursPerWeek:
+          type: integer
+          minimum: 1
+          maximum: 40
+        durationWeeks:
+          type: integer
+          minimum: 1
+          maximum: 52
+        preferredStyle:
+          type: string
+          enum: [practical, theoretical, mixed]
+        specificRequirements:
+          type: string
+
+    WeeklyTask:
+      type: object
+      required: [day, title, description, estimatedTime]
+      properties:
+        day: { type: integer, minimum: 1, maximum: 7 }
+        title: { type: string }
+        description: { type: string }
+        estimatedTime: { type: integer, minimum: 1 }
+
+    WeeklyPlan:
+      type: object
+      required: [week, title, description, goals, tasks]
+      properties:
+        week: { type: integer, minimum: 1 }
+        title: { type: string }
+        description: { type: string }
+        goals:
+          type: array
+          items: { type: string }
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyTask'
+
+    PlanMeta:
+      type: object
+      required: [provider, model, isFallback]
+      properties:
+        provider: { type: string, example: openrouter }
+        model: { type: string, example: openai/gpt-3.5-turbo }
+        isFallback: { type: boolean }
+
+    Plan:
+      type: object
+      required: [title, description, durationWeeks, weeklyPlans, mermaidCode]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        durationWeeks: { type: integer }
+        weeklyPlans:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyPlan'
+        mermaidCode: { type: string }
+        meta:
+          $ref: '#/components/schemas/PlanMeta'
+
+    PlanGenerateResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/Plan'
+
+    PlanResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/Plan'
+
+    UpdatePlanRequest:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        status:
+          type: string
+          enum: [ACTIVE, COMPLETED, PAUSED, CANCELLED]
+
+    Task:
+      type: object
+      required: [id, planId, title, week, day, completed]
+      properties:
+        id: { type: string }
+        planId: { type: string }
+        title: { type: string }
+        week: { type: integer, minimum: 1 }
+        day: { type: integer, minimum: 1, maximum: 7 }
+        completed: { type: boolean }
+
+    TaskListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+
+    UpdateTaskRequest:
+      type: object
+      required: [completed]
+      properties:
+        completed: { type: boolean }
+
+    TaskUpdateResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            taskId: { type: string }
+            completed: { type: boolean }
+            planProgress:
+              type: integer
+              minimum: 0
+              maximum: 100
+
+    BatchAITaskUpdateRequest:
+      type: object
+      required: [completions]
+      properties:
+        completions:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    AITaskCompletionMapResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            completions:
+              type: object
+              additionalProperties:
+                type: boolean
+
+    CreateCheckinRequest:
+      type: object
+      required: [duration]
+      properties:
+        date: { type: string, format: date }
+        duration: { type: integer, minimum: 1 }
+        notes: { type: string }
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    Checkin:
+      type: object
+      properties:
+        id: { type: string }
+        date: { type: string, format: date-time }
+        duration: { type: integer }
+        notes: { type: string, nullable: true }
+        rating: { type: integer, nullable: true }
+
+    CheckinResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/Checkin'
+
+    CheckinListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Checkin'
+
+    CreateReviewRequest:
+      type: object
+      required: [period, content]
+      properties:
+        period:
+          type: string
+          enum: [weekly, monthly, quarterly]
+        content:
+          type: object
+          additionalProperties: true
+
+    Review:
+      type: object
+      properties:
+        id: { type: string }
+        period: { type: string }
+        content:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+
+    ReviewResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/Review'
+
+    AIReviewSummaryRequest:
+      type: object
+      required: [period, source]
+      properties:
+        period:
+          type: string
+          enum: [weekly, monthly, quarterly]
+        source:
+          type: object
+          properties:
+            tasks:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            checkins:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            notes:
+              type: array
+              items: { type: string }
+
+    AIReviewSummaryResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            summary: { type: string }
+            highlights:
+              type: array
+              items: { type: string }
+            suggestions:
+              type: array
+              items: { type: string }
+
+    AnalyticsOverviewResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            activeDays: { type: integer }
+            completionRate: { type: number, format: float }
+            studyMinutes: { type: integer }
+            streak: { type: integer }
+
+    WeeklyReportResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            period: { type: string, example: weekly }
+            metrics:
+              type: object
+              additionalProperties: true
+            aiSummary:
+              type: object
+              additionalProperties: true
+
+    StandardSuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string }
+        data:
+          type: object
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error: { type: string }
+        message: { type: string }
