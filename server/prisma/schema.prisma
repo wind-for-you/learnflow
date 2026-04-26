@@ -59,6 +59,7 @@ model User {
   name      String
   password  String   // 密码字段（必需）
   role      Role     @default(USER)
+  isActive  Boolean  @default(true)
   avatar    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,8 +74,25 @@ model User {
   achievements UserAchievement[]
   agentTasks AgentTask[]
   agentMemories AgentMemory[]
+  auditLogs AuditLog[]
 
   @@map("users")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
 }
 
 // 目标模型

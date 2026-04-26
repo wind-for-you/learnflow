@@ -10,6 +10,7 @@ declare global {
         email: string;
         name: string;
         role: 'USER' | 'ADMIN';
+        isActive: boolean;
       };
     }
   }

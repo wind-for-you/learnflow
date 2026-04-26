@@ -48,6 +48,7 @@ export const requireAuth = async (
         email: true,
         name: true,
         role: true,
+        isActive: true,
       },
     });
 
@@ -55,6 +56,14 @@ export const requireAuth = async (
       res.status(401).json({ 
         error: 'Unauthorized', 
         message: '用户不存在' 
+      });
+      return;
+    }
+
+    if (!user.isActive) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: '账号已被停用，请联系管理员',
       });
       return;
     }
@@ -181,6 +190,7 @@ export const optionalAuth = async (
         email: true,
         name: true,
         role: true,
+        isActive: true,
       },
     });
 

@@ -7,6 +7,7 @@ import passport from '../config/passport';
 import prisma from '../shared/prisma';
 
 const router = Router();
+const oauthLoginEnabled = process.env.ENABLE_OAUTH_LOGIN === 'true';
 
 /**
  * POST /api/auth/register
@@ -125,6 +126,14 @@ router.post(
         return;
       }
 
+      if (!user.isActive) {
+        res.status(403).json({
+          error: 'Forbidden',
+          message: '账号已被停用，请联系管理员',
+        });
+        return;
+      }
+
       const isValidPassword = await bcrypt.compare(password, user.password);
 
       if (!isValidPassword) {
@@ -145,6 +154,7 @@ router.post(
           email: user.email,
           name: user.name,
           role: user.role,
+          isActive: user.isActive,
           avatar: user.avatar,
         },
         token,
@@ -165,9 +175,17 @@ router.post(
  */
 router.get(
   '/google',
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-  })
+  (req: Request, res: Response, next) => {
+    if (!oauthLoginEnabled) {
+      res.status(503).json({
+        error: 'Service Unavailable',
+        message: '第三方登录暂时关闭，请使用邮箱密码登录',
+      });
+      return;
+    }
+    next();
+  },
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 /**
@@ -176,6 +194,13 @@ router.get(
  */
 router.get(
   '/google/callback',
+  (req: Request, res: Response, next) => {
+    if (!oauthLoginEnabled) {
+      res.redirect(`${process.env.CLIENT_URL}/login?error=oauth_disabled`);
+      return;
+    }
+    next();
+  },
   passport.authenticate('google', { session: false }),
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -202,6 +227,16 @@ router.get(
  */
 router.get(
   '/github',
+  (req: Request, res: Response, next) => {
+    if (!oauthLoginEnabled) {
+      res.status(503).json({
+        error: 'Service Unavailable',
+        message: '第三方登录暂时关闭，请使用邮箱密码登录',
+      });
+      return;
+    }
+    next();
+  },
   passport.authenticate('github', {
     scope: ['read:user'], // 只请求读取用户信息，不请求邮箱
   })
@@ -213,6 +248,13 @@ router.get(
  */
 router.get(
   '/github/callback',
+  (req: Request, res: Response, next) => {
+    if (!oauthLoginEnabled) {
+      res.redirect(`${process.env.CLIENT_URL}/login?error=oauth_disabled`);
+      return;
+    }
+    next();
+  },
   passport.authenticate('github', { session: false }),
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -271,6 +313,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response):
         email: true,
         name: true,
         role: true,
+        isActive: true,
         avatar: true,
         createdAt: true,
         _count: {
