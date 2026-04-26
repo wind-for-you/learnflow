@@ -24,6 +24,8 @@ const ReviewPage = lazy(() => import('./components/ReviewPage'));
 const AchievementPage = lazy(() => import('./components/AchievementPage'));
 const AnalyticsPage = lazy(() => import('./components/AnalyticsPage'));
 const TaskCenterPage = lazy(() => import('./components/TaskCenterPage'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
+const OpsPage = lazy(() => import('./components/OpsPage'));
 
 // 受保护的路由组件
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -35,6 +37,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <PageSkeleton />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -73,6 +93,14 @@ function LazyProtected({ children }: { children: React.ReactNode }) {
   );
 }
 
+function LazyAdmin({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminRoute>
+      <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+    </AdminRoute>
+  );
+}
+
 // 主应用路由
 function AppRoutes() {
   return (
@@ -97,6 +125,8 @@ function AppRoutes() {
       <Route path="/reviews" element={<LazyProtected><ReviewPage /></LazyProtected>} />
       <Route path="/analytics" element={<LazyProtected><AnalyticsPage /></LazyProtected>} />
       <Route path="/task-center" element={<LazyProtected><TaskCenterPage /></LazyProtected>} />
+      <Route path="/admin" element={<LazyAdmin><AdminPage /></LazyAdmin>} />
+      <Route path="/ops" element={<LazyAdmin><OpsPage /></LazyAdmin>} />
       <Route path="/achievements" element={<LazyProtected><AchievementPage /></LazyProtected>} />
 
       {/* 默认重定向 */}

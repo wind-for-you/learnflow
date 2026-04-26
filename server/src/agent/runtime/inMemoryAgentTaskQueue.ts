@@ -32,6 +32,10 @@ const queue =
   });
 globalBullmq.__learnflowAgentQueue = queue;
 
+export async function getAgentTaskQueueStats(): Promise<Record<string, number>> {
+  return queue.getJobCounts('waiting', 'active', 'delayed', 'completed', 'failed', 'paused');
+}
+
 class InMemoryAgentTaskQueue {
   async enqueue(taskId: string): Promise<void> {
     await queue.add('agent-task', { taskId });

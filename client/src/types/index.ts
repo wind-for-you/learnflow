@@ -4,6 +4,7 @@ export interface User {
   email: string;
   name: string;
   role: 'USER' | 'ADMIN';
+  isActive?: boolean;
   avatar?: string;
   createdAt: string;
 }
@@ -154,6 +155,60 @@ export interface AgentTask {
   requestId?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminOverview {
+  users: number;
+  goals: number;
+  plans: number;
+  tasks: number;
+  agentTasks: number;
+}
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  name: string;
+  role: 'USER' | 'ADMIN';
+  isActive: boolean;
+  avatar?: string;
+  createdAt: string;
+  _count: {
+    goals: number;
+    plans: number;
+    tasks: number;
+    agentTasks: number;
+  };
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorId: string;
+  action: string;
+  targetType: string;
+  targetId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  actor: {
+    id: string;
+    email: string;
+    name: string;
+    role: 'USER' | 'ADMIN';
+  };
+}
+
+export interface OpsSystemOverview {
+  releaseMetrics: {
+    totalRequests: number;
+    successResponses: number;
+    errorResponses: number;
+    successRate: number;
+  };
+  queueMetrics: Record<string, number>;
+  failedTaskCount: number;
+  redisUrl: string;
+  workerConcurrency: number;
+  serverTime: string;
 }
 
 // API 响应类型

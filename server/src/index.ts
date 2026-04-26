@@ -17,6 +17,7 @@ import analyticsRoutes from './routes/analytics';
 import opsRoutes from './routes/ops';
 import agentTaskRoutes from './routes/agentTasks';
 import agentMemoryRoutes from './routes/agentMemories';
+import adminRoutes from './routes/admin';
 import { metricsMiddleware } from './middleware/metrics';
 import prisma from './shared/prisma';
 import logger from './shared/logger';
@@ -109,6 +110,7 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/adaptive', adaptiveRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ops', opsRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/agent-tasks', agentTaskRoutes);
 app.use('/api/agent-memories', agentMemoryRoutes);
 

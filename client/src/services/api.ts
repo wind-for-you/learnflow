@@ -10,3 +10,5 @@ export { reviewApi } from './api/reviewApi';
 export { analyticsApi } from './api/analyticsApi';
 export { achievementApi } from './api/achievementApi';
 export { agentTaskApi } from './api/agentTaskApi';
+export { adminApi } from './api/adminApi';
+export { opsApi } from './api/opsApi';

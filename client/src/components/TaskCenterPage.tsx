@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowPathIcon, PauseCircleIcon, PlayIcon } from '@heroicons/react/24/outline';
 import type { AgentTask } from '../types';
 import { agentTaskApi } from '../services/api';
@@ -37,6 +38,7 @@ function toPrettyTaskType(taskType: AgentTask['taskType']): string {
 }
 
 export default function TaskCenterPage() {
+  const [searchParams] = useSearchParams();
   const [tasks, setTasks] = useState<AgentTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionTaskId, setActionTaskId] = useState<string | null>(null);
@@ -72,6 +74,11 @@ export default function TaskCenterPage() {
     () => tasks.filter((task) => task.state === 'RUNNING' || task.state === 'UNINITIALIZED').length,
     [tasks],
   );
+  const filteredState = searchParams.get('state') as AgentTask['state'] | null;
+  const visibleTasks = useMemo(() => {
+    if (!filteredState) return tasks;
+    return tasks.filter((task) => task.state === filteredState);
+  }, [tasks, filteredState]);
 
   const handleCancel = async (taskId: string) => {
     setActionTaskId(taskId);
@@ -101,6 +108,11 @@ export default function TaskCenterPage() {
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
             管理 Agent 异步任务，支持查看状态、取消与重试。
           </p>
+          {filteredState && (
+            <p className="mt-1 text-xs text-primary-700 dark:text-primary-300">
+              当前筛选状态：{filteredState}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 dark:text-gray-300">
@@ -126,11 +138,11 @@ export default function TaskCenterPage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         {loading ? (
           <div className="p-6 text-sm text-gray-600 dark:text-gray-300">加载中...</div>
-        ) : tasks.length === 0 ? (
+        ) : visibleTasks.length === 0 ? (
           <div className="p-6 text-sm text-gray-600 dark:text-gray-300">暂无任务记录</div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {tasks.map((task) => {
+            {visibleTasks.map((task) => {
               const inputText = JSON.stringify(task.input ?? {});
               const outputText = task.output ? JSON.stringify(task.output) : '';
               const canCancel = task.state === 'UNINITIALIZED' || task.state === 'RUNNING';

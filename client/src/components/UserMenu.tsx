@@ -5,6 +5,8 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
+  ShieldCheckIcon,
+  CircleStackIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -117,6 +119,27 @@ export default function UserMenu() {
               <Cog6ToothIcon className="h-4 w-4 mr-3" />
               系统设置
             </Link>
+
+            {user.role === 'ADMIN' && (
+              <>
+                <Link
+                  to="/admin"
+                  onClick={handleMenuClick}
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
+                  <ShieldCheckIcon className="h-4 w-4 mr-3" />
+                  管理后台
+                </Link>
+                <Link
+                  to="/ops"
+                  onClick={handleMenuClick}
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
+                  <CircleStackIcon className="h-4 w-4 mr-3" />
+                  运维后台
+                </Link>
+              </>
+            )}
 
             {/* 分割线 */}
             <div className="border-t border-gray-200 dark:border-gray-700"></div>
