@@ -3,10 +3,12 @@ import { Role } from '@prisma/client';
 import { body, param, query, validationResult } from 'express-validator';
 import { AuthenticatedRequest, requireAdmin, requireAuth } from '../middleware/auth';
 import prisma from '../shared/prisma';
+import llmProfileAdminRoutes from './adminLlmProfiles';
 
 const router = Router();
 
 router.use(requireAuth, requireAdmin);
+router.use(llmProfileAdminRoutes);
 
 router.get(
   '/overview',

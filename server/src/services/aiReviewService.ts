@@ -1,6 +1,7 @@
 import axios from 'axios';
 import prisma from '../shared/prisma';
 import logger from '../shared/logger';
+import { resolveDefaultLlmRuntime, type ResolvedLlmRuntime } from './runtimeLlmConfigService';
 
 /**
  * AI 学习复盘生成服务
@@ -47,13 +48,11 @@ export async function generateAIReview(
     plans: g.plans.map((p) => ({ title: p.title, progress: p.progress })),
   }));
 
-  const apiKey = process.env.OPENROUTER_API_KEY || '';
-  const baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-  const model = process.env.OPENROUTER_MODEL || 'qwen3.6-plus';
+  const llm = await resolveDefaultLlmRuntime();
 
-  if (apiKey) {
+  if (llm?.apiKey) {
     try {
-      return await callAIForReview(apiKey, baseURL, model, {
+      return await callAIForReview(llm, {
         period,
         totalCheckins,
         totalDuration,
@@ -69,6 +68,7 @@ export async function generateAIReview(
         status: detail.status,
         requestId: detail.requestId,
         message: detail.message,
+        profile: llm.profileSlug,
       });
     }
   }
@@ -172,12 +172,7 @@ function extractAxiosErrorDetail(error: unknown): {
   return { status, requestId, message };
 }
 
-async function callAIForReview(
-  apiKey: string,
-  baseURL: string,
-  model: string,
-  data: ReviewData,
-): Promise<string> {
+async function callAIForReview(llm: ResolvedLlmRuntime, data: ReviewData): Promise<string> {
   const periodLabel = data.period === 'weekly' ? '本周' : '本月';
   const nextPeriodLabel = data.period === 'weekly' ? '下周' : '下月';
 
@@ -203,9 +198,9 @@ ${data.goalSummaries.map((g) => `  - ${g.title}（${g.status}，进度 ${g.progr
 - （给出 2-3 条具体建议）`;
 
   const response = await axios.post(
-    `${baseURL}/chat/completions`,
+    `${llm.baseURL}/chat/completions`,
     {
-      model,
+      model: llm.model,
       messages: [
         { role: 'system', content: '你是一位专业的学习教练，擅长分析学习数据并给出有针对性的建议。' },
         { role: 'user', content: prompt },
@@ -215,13 +210,12 @@ ${data.goalSummaries.map((g) => `  - ${g.title}（${g.status}，进度 ${g.progr
     },
     {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${llm.apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://learnflow.app',
         'X-Title': 'LearnFlow Learning Platform',
       },
-      // 短于前端默认超时，优先触发服务端回退模板，避免与客户端 30s 竞态
-      timeout: 20000,
+      timeout: llm.timeoutMs,
     },
   );
 

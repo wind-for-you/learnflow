@@ -1,6 +1,7 @@
 import { AgentTaskState, AgentTaskType, Prisma } from '@prisma/client';
 import prisma from '../../shared/prisma';
 import logger from '../../shared/logger';
+import { formatErrorForStorage, serializeError } from '../../shared/serializeError';
 import { aiService, GeneratePlanRequest } from '../../services/aiService';
 import { ensureStructuredReviewSummary } from '../../services/aiSchemaGuard';
 import { generateAIReviewSummary } from '../../services/aiReviewService';
@@ -205,7 +206,8 @@ export async function processAgentTask(taskId: string): Promise<void> {
       },
     });
   } catch (error) {
-    logger.error('Agent Worker 执行失败', { taskId, error });
+    const serialized = serializeError(error);
+    logger.error('Agent Worker 执行失败', { taskId, ...serialized });
     await prisma.agentTask.updateMany({
       where: {
         id: taskId,
@@ -214,7 +216,7 @@ export async function processAgentTask(taskId: string): Promise<void> {
       data: {
         state: AgentTaskState.ERROR,
         endedAt: new Date(),
-        errorMessage: error instanceof Error ? error.message : '未知错误',
+        errorMessage: formatErrorForStorage(error),
       },
     });
   }

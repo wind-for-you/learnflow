@@ -1,5 +1,6 @@
 import axios from 'axios';
 import logger from '../shared/logger';
+import { resolveDefaultLlmRuntime, type ResolvedLlmRuntime } from './runtimeLlmConfigService';
 
 export interface WeeklyPlan {
   week: number;
@@ -34,34 +35,21 @@ export interface GeneratePlanRequest {
 }
 
 /**
- * AI 学习计划生成服务
+ * AI 学习计划生成服务（运行时配置见 runtimeLlmConfigService / 后台 LLM Profile）
  */
 class AIService {
-  private apiKey: string;
-  private baseURL: string;
-  private model: string;
-
-  constructor() {
-    this.apiKey = process.env.OPENROUTER_API_KEY || '';
-    this.baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-    this.model = process.env.OPENROUTER_MODEL || 'qwen3.6-plus';
-    
-    if (!this.apiKey) {
-      logger.warn('OpenRouter API Key 未配置，AI 功能将不可用');
-    }
-  }
-
   /**
    * 生成学习计划
    */
   async generateLearningPlan(request: GeneratePlanRequest): Promise<LearningPlan> {
-    if (!this.apiKey) {
+    const llm = await resolveDefaultLlmRuntime();
+    if (!llm?.apiKey) {
       return this.generateFallbackPlan(request, 'AI 服务未配置，已生成模板计划');
     }
 
     try {
       const prompt = this.buildPrompt(request);
-      const response = await this.callOpenRouter(prompt);
+      const response = await this.callLlmChat(prompt, llm);
       
       return this.parsePlanResponse(response, request);
     } catch (error) {
@@ -176,13 +164,13 @@ ${specificRequirements ? `**特殊要求**: ${specificRequirements}` : ''}
   }
 
   /**
-   * 调用 OpenRouter API
+   * 调用兼容 OpenAI Chat Completions 的网关（百炼 / OpenRouter 等）
    */
-  private async callOpenRouter(prompt: string): Promise<string> {
+  private async callLlmChat(prompt: string, llm: ResolvedLlmRuntime): Promise<string> {
     const response = await axios.post(
-      `${this.baseURL}/chat/completions`,
+      `${llm.baseURL}/chat/completions`,
       {
-        model: this.model,
+        model: llm.model,
         messages: [
           {
             role: 'system',
@@ -198,12 +186,12 @@ ${specificRequirements ? `**特殊要求**: ${specificRequirements}` : ''}
       },
       {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${llm.apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://learnflow.app',
           'X-Title': 'LearnFlow Learning Platform',
         },
-        timeout: 60000, // 百炼大模型偶发慢响应，放宽超时避免误降级
+        timeout: llm.timeoutMs,
       }
     );
 

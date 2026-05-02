@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { Worker } from 'bullmq';
 import logger from '../shared/logger';
+import { serializeError } from '../shared/serializeError';
 import prisma from '../shared/prisma';
 import {
   agentTaskQueueName,
@@ -30,10 +31,11 @@ worker.on('completed', (job) => {
 });
 
 worker.on('failed', (job, err) => {
+  const serialized = serializeError(err);
   logger.error('Agent Worker 任务失败', {
     jobId: job?.id,
     taskId: job?.data?.taskId,
-    error: err.message,
+    ...serialized,
   });
 });
 

@@ -79,6 +79,34 @@ router.get('/retention-d7', async (_req, res: Response): Promise<void> => {
   });
 });
 
+/**
+ * GET /api/ops/agent-recent-errors?limit=20
+ * 最近失败的 Agent 任务（可读 errorMessage），供运维页排障
+ */
+router.get('/agent-recent-errors', async (req, res: Response): Promise<void> => {
+  const raw = req.query.limit;
+  const n = typeof raw === 'string' ? parseInt(raw, 10) : 20;
+  const limit = Number.isFinite(n) ? Math.min(50, Math.max(1, n)) : 20;
+
+  const tasks = await prisma.agentTask.findMany({
+    where: { state: 'ERROR' },
+    orderBy: { updatedAt: 'desc' },
+    take: limit,
+    select: {
+      id: true,
+      userId: true,
+      taskType: true,
+      agentType: true,
+      state: true,
+      errorMessage: true,
+      updatedAt: true,
+      createdAt: true,
+    },
+  });
+
+  res.json({ success: true, data: tasks });
+});
+
 router.get('/system-overview', async (_req, res: Response): Promise<void> => {
   const [releaseMetrics, queueMetrics, failedTaskCount] = await Promise.all([
     Promise.resolve(getReleaseMetrics()),

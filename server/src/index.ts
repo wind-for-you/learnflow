@@ -23,6 +23,7 @@ import { metricsMiddleware } from './middleware/metrics';
 import prisma from './shared/prisma';
 import logger from './shared/logger';
 import { validateEnv } from './shared/env';
+import { ensureLlmProviderProfiles } from './services/llmProfileSeed';
 
 // 导入 Passport 配置
 import passport from './config/passport';
@@ -228,12 +229,17 @@ async function startServer() {
     await prisma.$connect();
     logger.info('数据库连接成功');
 
+    await ensureLlmProviderProfiles();
+
     app.listen(PORT, () => {
       logger.info(`LearnFlow 服务器运行在端口 ${PORT}`);
       logger.info(`环境: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`客户端地址: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
       logger.info(`JWT: ${process.env.JWT_SECRET ? '已配置' : '未配置'}`);
-      logger.info(`AI 服务: ${process.env.OPENROUTER_API_KEY ? '已配置' : '未配置'}`);
+      const aiOk =
+        Boolean(process.env.DASHSCOPE_API_KEY?.trim()) ||
+        Boolean(process.env.OPENROUTER_API_KEY?.trim());
+      logger.info(`AI 服务: ${aiOk ? '已配置(DASHSCOPE 或 OPENROUTER 密钥)' : '未配置'}`);
       logger.info(`Redis: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`);
     });
   } catch (error) {

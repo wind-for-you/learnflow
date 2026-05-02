@@ -52,6 +52,12 @@ enum ProviderType {
   ANTHROPIC
 }
 
+/// Wave 3.5：后台可切换的 LLM 接入通道（密钥仍来自环境变量）
+enum LlmProfileChannel {
+  DASHSCOPE
+  OPENROUTER_COMPAT
+}
+
 // 用户模型
 model User {
   id        String   @id @default(cuid())
@@ -293,4 +299,22 @@ model AgentMemory {
   @@unique([userId, key])
   @@index([updatedAt])
   @@map("agent_memories")
+}
+
+/// Wave 3.5：大模型运行配置（Base URL / 模型 / 超时）；API Key 仅存 env
+model LlmProviderProfile {
+  id        String            @id @default(cuid())
+  slug      String            @unique
+  label     String
+  channel   LlmProfileChannel @default(DASHSCOPE)
+  baseUrl   String?
+  model     String?
+  timeoutMs Int               @default(20000)
+  enabled   Boolean           @default(true)
+  isDefault Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([enabled, isDefault])
+  @@map("llm_provider_profiles")
 }
