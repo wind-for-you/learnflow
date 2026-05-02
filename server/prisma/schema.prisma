@@ -58,6 +58,11 @@ enum LlmProfileChannel {
   OPENROUTER_COMPAT
 }
 
+/// Wave 4：视频资源；当前仅外链嵌入（上传见 Wave 5）
+enum VideoResourceType {
+  EMBED
+}
+
 // 用户模型
 model User {
   id        String   @id @default(cuid())
@@ -86,6 +91,7 @@ model User {
   agentMemories AgentMemory[]
   auditLogs AuditLog[]
   productEvents ProductEvent[]
+  videoResources VideoResource[]
 
   @@map("users")
 }
@@ -136,6 +142,7 @@ model Goal {
   // 关联关系
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   plans Plan[]
+  videoResources VideoResource[]
 
   @@map("goals")
 }
@@ -158,6 +165,7 @@ model Plan {
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks Task[]
   aiTaskCompletions AITaskCompletion[]
+  videoResources VideoResource[]
 
   @@map("plans")
 }
@@ -177,6 +185,7 @@ model Task {
   // 关联关系
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoResources VideoResource[]
 
   @@map("tasks")
 }
@@ -317,4 +326,30 @@ model LlmProviderProfile {
 
   @@index([enabled, isDefault])
   @@map("llm_provider_profiles")
+}
+
+/// Wave 4：外链视频（域名白名单由服务端校验）
+model VideoResource {
+  id        String            @id @default(cuid())
+  userId    String
+  type      VideoResourceType @default(EMBED)
+  url       String
+  title     String?
+  metadata  Json?
+  goalId    String?
+  planId    String?
+  taskId    String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  plan Plan? @relation(fields: [planId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([planId])
+  @@index([goalId])
+  @@map("video_resources")
 }

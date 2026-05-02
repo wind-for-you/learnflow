@@ -19,6 +19,7 @@ import accountRoutes from './routes/account';
 import agentTaskRoutes from './routes/agentTasks';
 import agentMemoryRoutes from './routes/agentMemories';
 import adminRoutes from './routes/admin';
+import videoResourceRoutes from './routes/videoResources';
 import { metricsMiddleware } from './middleware/metrics';
 import prisma from './shared/prisma';
 import logger from './shared/logger';
@@ -37,10 +38,28 @@ const env = validateEnv();
 const app = express();
 const PORT = env.PORT;
 
-// 全局中间件
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+// 全局中间件（Wave 4：允许白名单视频站 iframe 嵌入）
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'frame-src': [
+          "'self'",
+          'https://www.youtube.com',
+          'https://youtube.com',
+          'https://www.youtube-nocookie.com',
+          'https://player.vimeo.com',
+          'https://vimeo.com',
+          'https://player.bilibili.com',
+          'https://www.bilibili.com',
+          'https://m.bilibili.com',
+        ],
+      },
+    },
+  }),
+);
 
 function resolveCorsOrigin(): string | string[] {
   const clientUrl = process.env.CLIENT_URL;
@@ -132,6 +151,7 @@ app.use('/api/account', accountRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent-tasks', agentTaskRoutes);
 app.use('/api/agent-memories', agentMemoryRoutes);
+app.use('/api/video-resources', videoResourceRoutes);
 
 // 404 处理
 app.use('*', (req, res) => {

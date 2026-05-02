@@ -13,3 +13,4 @@ export { agentTaskApi } from './api/agentTaskApi';
 export { adminApi } from './api/adminApi';
 export { opsApi } from './api/opsApi';
 export { accountApi } from './api/accountApi';
+export { videoResourceApi } from './api/videoResourceApi';

@@ -9,8 +9,9 @@ import {
   BookOpenIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
-import { taskApi } from '../services/api';
-import type { Task } from '../types';
+import { taskApi, videoResourceApi } from '../services/api';
+import type { Task, VideoResource } from '../types';
+import VideoEmbedPlayer from './VideoEmbedPlayer';
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,12 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [videos, setVideos] = useState<VideoResource[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoSaving, setVideoSaving] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // 加载任务详情
   useEffect(() => {
@@ -45,6 +52,61 @@ export default function TaskDetailPage() {
 
     loadTaskDetail();
   }, [id]);
+
+  const loadVideos = async (taskId: string) => {
+    try {
+      setVideosLoading(true);
+      const { videos: list } = await videoResourceApi.listByTask(taskId);
+      setVideos(list);
+    } catch {
+      setVideos([]);
+    } finally {
+      setVideosLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+    void loadVideos(id);
+  }, [id]);
+
+  const handleAddVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !videoUrl.trim()) {
+      return;
+    }
+    try {
+      setVideoSaving(true);
+      setVideoError(null);
+      await videoResourceApi.createEmbed({
+        url: videoUrl.trim(),
+        title: videoTitle.trim() || undefined,
+        taskId: id,
+      });
+      setVideoUrl('');
+      setVideoTitle('');
+      await loadVideos(id);
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || '添加失败';
+      setVideoError(msg);
+    } finally {
+      setVideoSaving(false);
+    }
+  };
+
+  const handleRemoveVideo = async (videoId: string) => {
+    if (!id || !window.confirm('确定移除该视频链接？')) {
+      return;
+    }
+    try {
+      await videoResourceApi.remove(videoId);
+      await loadVideos(id);
+    } catch {
+      alert('删除失败，请重试');
+    }
+  };
 
   // 切换任务完成状态
   const toggleTaskComplete = async () => {
@@ -157,6 +219,85 @@ export default function TaskDetailPage() {
                 <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
                   暂无详细描述
                 </p>
+              </div>
+            </div>
+
+            {/* 关联学习视频（Wave 4：白名单外链） */}
+            <div className="card">
+              <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">学习视频</h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  支持 https 的哔哩哔哩 / YouTube / Vimeo 链接
+                </span>
+              </div>
+              <div className="card-body space-y-6">
+                {videoError && (
+                  <div className="rounded-md border border-error-200 dark:border-error-800 bg-error-50 dark:bg-error-900/20 px-3 py-2 text-sm text-error-800 dark:text-error-200">
+                    {videoError}
+                  </div>
+                )}
+                {videosLoading ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">加载视频列表…</p>
+                ) : videos.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">暂无关联视频，可在下方添加外链。</p>
+                ) : (
+                  <div className="space-y-8">
+                    {videos.map((v) => (
+                      <div key={v.id} className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {v.title || '未命名视频'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 break-all mt-0.5">{v.url}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoveVideo(v.id)}
+                            className="text-xs text-error-600 dark:text-error-400 hover:underline shrink-0"
+                          >
+                            移除
+                          </button>
+                        </div>
+                        <VideoEmbedPlayer pageUrl={v.url} title={v.title} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <form onSubmit={(e) => void handleAddVideo(e)} className="space-y-3 border-t border-gray-100 dark:border-gray-700 pt-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">粘贴视频页链接（需 https，域名在允许列表内）。</p>
+                  <div>
+                    <label htmlFor="embed-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      链接
+                    </label>
+                    <input
+                      id="embed-url"
+                      type="url"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      className="mt-1 input w-full"
+                      placeholder="https://www.bilibili.com/video/BV…"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="embed-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      显示标题（可选）
+                    </label>
+                    <input
+                      id="embed-title"
+                      type="text"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      className="mt-1 input w-full"
+                      placeholder="例如：第 3 讲预习"
+                      maxLength={200}
+                    />
+                  </div>
+                  <button type="submit" className="btn-primary" disabled={videoSaving || !videoUrl.trim()}>
+                    {videoSaving ? '保存中…' : '添加视频'}
+                  </button>
+                </form>
               </div>
             </div>
 

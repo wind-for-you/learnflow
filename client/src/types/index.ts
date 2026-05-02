@@ -102,6 +102,21 @@ export interface Task {
   };
 }
 
+/** Wave 4：外链视频资源（上传形态见后续波次） */
+export interface VideoResource {
+  id: string;
+  userId: string;
+  type: 'EMBED';
+  url: string;
+  title?: string | null;
+  metadata?: Record<string, unknown> | null;
+  goalId?: string | null;
+  planId?: string | null;
+  taskId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 打卡记录类型
 export interface Checkin {
   id: string;
