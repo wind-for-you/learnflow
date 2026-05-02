@@ -218,6 +218,43 @@ export interface OpsSystemOverview {
   serverTime: string;
 }
 
+/** Wave 3.5：后台 LLM Profile（密钥状态仅布尔，无明文） */
+export interface LlmProfileAdminRow {
+  id: string;
+  slug: string;
+  label: string;
+  channel: 'DASHSCOPE' | 'OPENROUTER_COMPAT';
+  baseUrl: string | null;
+  model: string | null;
+  timeoutMs: number;
+  enabled: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+  envKeyConfigured: boolean;
+}
+
+export interface LlmActivePreview {
+  profileSlug: string;
+  profileLabel: string;
+  channel: 'DASHSCOPE' | 'OPENROUTER_COMPAT';
+  baseURL: string;
+  model: string;
+  timeoutMs: number;
+  hasApiKey: boolean;
+}
+
+export interface AgentRecentErrorRow {
+  id: string;
+  userId: string;
+  taskType: string;
+  agentType: string;
+  state: string;
+  errorMessage?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+
 // API 响应类型
 export interface ApiResponse<T = any> {
   message?: string;

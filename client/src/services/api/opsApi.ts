@@ -1,4 +1,4 @@
-import type { OpsSystemOverview } from '../../types';
+import type { AgentRecentErrorRow, OpsSystemOverview } from '../../types';
 import { api, unwrapResponse } from './http';
 
 export const opsApi = {
@@ -24,6 +24,11 @@ export const opsApi = {
         rateApprox: number;
       }>
     >(response.data, (raw) => raw).data;
+  },
+
+  getAgentRecentErrors: async (limit = 20): Promise<AgentRecentErrorRow[]> => {
+    const response = await api.get('/ops/agent-recent-errors', { params: { limit } });
+    return unwrapResponse<AgentRecentErrorRow[]>(response.data).data;
   },
 
   getQueueMetrics: async (): Promise<{

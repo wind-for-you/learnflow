@@ -1,12 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { adminApi } from '../services/api';
-import type { AdminOverview, AdminUserListItem, AuditLogEntry } from '../types';
+import type { AdminOverview, AdminUserListItem, AuditLogEntry, LlmActivePreview, LlmProfileAdminRow } from '../types';
+
+type AdminSection = 'users' | 'llm';
 
 export default function AdminPage() {
+  const [section, setSection] = useState<AdminSection>('users');
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [llmProfiles, setLlmProfiles] = useState<LlmProfileAdminRow[]>([]);
+  const [llmActive, setLlmActive] = useState<LlmActivePreview | null>(null);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmError, setLlmError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{
+    id: string;
+    label: string;
+    baseUrl: string;
+    model: string;
+    timeoutMs: string;
+  } | null>(null);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState('');
@@ -63,9 +78,34 @@ export default function AdminPage() {
     }
   };
 
+  const loadLlm = async (): Promise<void> => {
+    try {
+      setLlmLoading(true);
+      setLlmError(null);
+      const pack = await adminApi.getLlmProfiles();
+      setLlmProfiles(pack.profiles);
+      setLlmActive(pack.activePreview);
+    } catch (err) {
+      const message = (err as { message?: string })?.message || '加载 LLM 配置失败';
+      setLlmError(message);
+    } finally {
+      setLlmLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (section !== 'users') {
+      return;
+    }
     void loadData();
-  }, [userSearch, userRoleFilter, userStatusFilter, userSortBy, userSortOrder, userPage, userPagination.limit, logActionFilter, logStartAt, logEndAt, logPage, logPagination.limit]);
+  }, [section, userSearch, userRoleFilter, userStatusFilter, userSortBy, userSortOrder, userPage, userPagination.limit, logActionFilter, logStartAt, logEndAt, logPage, logPagination.limit]);
+
+  useEffect(() => {
+    if (section !== 'llm') {
+      return;
+    }
+    void loadLlm();
+  }, [section]);
 
   useEffect(() => {
     setUserPage(1);
@@ -107,6 +147,45 @@ export default function AdminPage() {
     }
   };
 
+  const handleSaveLlm = async (id: string): Promise<void> => {
+    if (!editing || editing.id !== id) return;
+    const timeoutMs = parseInt(editing.timeoutMs, 10);
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 3000 || timeoutMs > 120000) {
+      setLlmError('超时须为 3000–120000 毫秒');
+      return;
+    }
+    try {
+      setLlmLoading(true);
+      await adminApi.patchLlmProfile(id, {
+        label: editing.label.trim(),
+        baseUrl: editing.baseUrl.trim() === '' ? null : editing.baseUrl.trim(),
+        model: editing.model.trim() === '' ? null : editing.model.trim(),
+        timeoutMs,
+      });
+      setEditing(null);
+      await loadLlm();
+    } catch (err) {
+      const message = (err as { message?: string })?.message || '保存失败';
+      setLlmError(message);
+    } finally {
+      setLlmLoading(false);
+    }
+  };
+
+  const handleSetDefaultLlm = async (id: string): Promise<void> => {
+    try {
+      setLlmLoading(true);
+      setLlmError(null);
+      await adminApi.setDefaultLlmProfile(id);
+      await loadLlm();
+    } catch (err) {
+      const message = (err as { message?: string })?.message || '切换默认失败';
+      setLlmError(message);
+    } finally {
+      setLlmLoading(false);
+    }
+  };
+
   const handleExportLogs = async () => {
     try {
       const blob = await adminApi.exportAuditLogsCsv({
@@ -131,9 +210,32 @@ export default function AdminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">管理后台</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">用户与审计最小管理面板</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">用户、审计与 Wave 3.5 大模型运行配置（密钥仅存环境变量）</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={section === 'users' ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => setSection('users')}
+            >
+              用户与审计
+            </button>
+            <button
+              type="button"
+              className={section === 'llm' ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => setSection('llm')}
+            >
+              大模型运行配置
+            </button>
+            <Link to="/ops" className="btn-secondary inline-flex items-center">
+              运维指标
+            </Link>
+          </div>
         </div>
-        <button className="btn-primary" onClick={() => void loadData()} disabled={loading}>
+        <button
+          className="btn-primary"
+          onClick={() => (section === 'users' ? void loadData() : void loadLlm())}
+          disabled={section === 'users' ? loading : llmLoading}
+        >
           刷新
         </button>
       </div>
@@ -144,6 +246,155 @@ export default function AdminPage() {
         </div>
       )}
 
+      {section === 'llm' && llmError && (
+        <div className="rounded-md border border-error-300 bg-error-50 dark:bg-error-900/20 p-3 text-sm text-error-700 dark:text-error-200">
+          {llmError}
+        </div>
+      )}
+
+      {section === 'llm' && (
+        <div className="space-y-4">
+          <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 text-sm">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">当前解析结果（不落库密钥）</h2>
+            {llmActive ? (
+              <ul className="space-y-1 text-gray-700 dark:text-gray-300">
+                <li>
+                  Profile：<span className="font-medium">{llmActive.profileLabel}</span>（{llmActive.profileSlug}）
+                </li>
+                <li>通道：{llmActive.channel}</li>
+                <li className="break-all">Base URL：{llmActive.baseURL}</li>
+                <li>模型：{llmActive.model}</li>
+                <li>超时：{llmActive.timeoutMs} ms</li>
+                <li>环境密钥：{llmActive.hasApiKey ? '已检测到' : '未配置（将走模板/规则回退）'}</li>
+              </ul>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">暂无可用配置</p>
+            )}
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              默认使用阿里百炼兼容端点；可在 `.env` 设置 `DASHSCOPE_API_KEY`（或过渡期沿用 `OPENROUTER_API_KEY` 指向兼容网关）。详见 `server/env.example`。
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Provider Profile</h2>
+              {llmLoading && <span className="text-xs text-gray-500">加载中…</span>}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300">
+                  <tr>
+                    <th className="text-left px-4 py-2">标识</th>
+                    <th className="text-left px-4 py-2">通道</th>
+                    <th className="text-left px-4 py-2">密钥(env)</th>
+                    <th className="text-left px-4 py-2">默认</th>
+                    <th className="text-left px-4 py-2">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {llmProfiles.map((p) => (
+                    <tr key={p.id} className="border-t border-gray-100 dark:border-gray-700 align-top">
+                      <td className="px-4 py-2">
+                        <div className="font-medium text-gray-900 dark:text-white">{p.label}</div>
+                        <div className="text-xs text-gray-500">{p.slug}</div>
+                        {editing?.id === p.id ? (
+                          <div className="mt-2 space-y-2 max-w-md">
+                            <input
+                              className="input text-xs"
+                              value={editing.label}
+                              onChange={(e) => setEditing({ ...editing, label: e.target.value })}
+                              placeholder="显示名"
+                            />
+                            <input
+                              className="input text-xs"
+                              value={editing.baseUrl}
+                              onChange={(e) => setEditing({ ...editing, baseUrl: e.target.value })}
+                              placeholder="Base URL，空则使用环境默认"
+                            />
+                            <input
+                              className="input text-xs"
+                              value={editing.model}
+                              onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                              placeholder="模型 ID，空则使用环境默认"
+                            />
+                            <input
+                              className="input text-xs"
+                              value={editing.timeoutMs}
+                              onChange={(e) => setEditing({ ...editing, timeoutMs: e.target.value })}
+                              placeholder="超时 ms"
+                            />
+                            <div className="flex gap-2">
+                              <button type="button" className="btn-primary text-xs py-1" onClick={() => void handleSaveLlm(p.id)}>
+                                保存
+                              </button>
+                              <button type="button" className="btn-secondary text-xs py-1" onClick={() => setEditing(null)}>
+                                取消
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+                            <div className="break-all">URL: {p.baseUrl || '（环境默认）'}</div>
+                            <div>模型: {p.model || '（环境默认）'}</div>
+                            <div>超时: {p.timeoutMs} ms</div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-gray-800 dark:text-gray-200">{p.channel}</td>
+                      <td className="px-4 py-2">
+                        <span className={p.envKeyConfigured ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>
+                          {p.envKeyConfigured ? '已配置' : '未配置'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">{p.isDefault ? '是' : '否'}</td>
+                      <td className="px-4 py-2 space-y-2">
+                        {!p.isDefault && (
+                          <button
+                            type="button"
+                            className="btn-secondary text-xs py-1 block w-full"
+                            disabled={llmLoading || !p.enabled}
+                            onClick={() => void handleSetDefaultLlm(p.id)}
+                          >
+                            设为默认
+                          </button>
+                        )}
+                        {editing?.id !== p.id && (
+                          <button
+                            type="button"
+                            className="btn-secondary text-xs py-1 block w-full"
+                            disabled={llmLoading}
+                            onClick={() =>
+                              setEditing({
+                                id: p.id,
+                                label: p.label,
+                                baseUrl: p.baseUrl || '',
+                                model: p.model || '',
+                                timeoutMs: String(p.timeoutMs),
+                              })
+                            }
+                          >
+                            编辑
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {!llmLoading && llmProfiles.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                        无 Profile，请确认数据库已迁移并重启服务
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {section === 'users' && (
+        <>
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {[
           { label: '用户数', value: overview?.users ?? '-' },
@@ -341,6 +592,8 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

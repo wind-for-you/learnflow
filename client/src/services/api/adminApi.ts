@@ -1,4 +1,10 @@
-import type { AdminOverview, AdminUserListItem, AuditLogEntry } from '../../types';
+import type {
+  AdminOverview,
+  AdminUserListItem,
+  AuditLogEntry,
+  LlmActivePreview,
+  LlmProfileAdminRow,
+} from '../../types';
 import { api, unwrapResponse } from './http';
 
 interface PaginationResult {
@@ -52,6 +58,40 @@ export const adminApi = {
       response.data,
       (raw) => ({ logs: raw.logs || [], pagination: raw.pagination }),
     ).data;
+  },
+
+  getLlmProfiles: async (): Promise<{
+    profiles: LlmProfileAdminRow[];
+    activePreview: LlmActivePreview | null;
+  }> => {
+    const response = await api.get('/admin/llm-profiles');
+    return unwrapResponse<{ profiles: LlmProfileAdminRow[]; activePreview: LlmActivePreview | null }>(
+      response.data,
+      (raw) => ({
+        profiles: raw.profiles || [],
+        activePreview: raw.activePreview ?? null,
+      }),
+    ).data;
+  },
+
+  patchLlmProfile: async (
+    id: string,
+    body: Partial<{
+      label: string;
+      baseUrl: string | null;
+      model: string | null;
+      timeoutMs: number;
+      enabled: boolean;
+    }>,
+  ): Promise<LlmProfileAdminRow> => {
+    const response = await api.patch(`/admin/llm-profiles/${id}`, body);
+    return unwrapResponse<{ profile: LlmProfileAdminRow }>(response.data, (raw) => ({
+      profile: raw.profile,
+    })).data.profile;
+  },
+
+  setDefaultLlmProfile: async (id: string): Promise<void> => {
+    await api.post(`/admin/llm-profiles/${id}/set-default`);
   },
 
   exportAuditLogsCsv: async (params?: {

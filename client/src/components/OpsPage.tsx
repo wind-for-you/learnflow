@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { opsApi } from '../services/api';
-import type { OpsSystemOverview } from '../types';
+import type { AgentRecentErrorRow, OpsSystemOverview } from '../types';
 
 export default function OpsPage() {
   const [overview, setOverview] = useState<OpsSystemOverview | null>(null);
@@ -9,6 +9,7 @@ export default function OpsPage() {
   const [retention, setRetention] = useState<
     Array<{ cohortDay: string; registered: number; retainedD7: number; rateApprox: number }>
   >([]);
+  const [agentErrors, setAgentErrors] = useState<AgentRecentErrorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,14 +17,16 @@ export default function OpsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [overviewResp, queueResp, retentionResp] = await Promise.all([
+      const [overviewResp, queueResp, retentionResp, errorsResp] = await Promise.all([
         opsApi.getSystemOverview(),
         opsApi.getQueueMetrics(),
         opsApi.getRetentionD7(),
+        opsApi.getAgentRecentErrors(25),
       ]);
       setOverview(overviewResp);
       setTaskState(queueResp.dbTaskState);
       setRetention(retentionResp);
+      setAgentErrors(errorsResp);
     } catch (err) {
       const message = (err as { message?: string })?.message || '加载运维数据失败';
       setError(message);
@@ -87,6 +90,50 @@ export default function OpsPage() {
               <div className="text-base font-medium text-gray-900 dark:text-white">{value}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Agent 最近失败（可读错误）</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            来自 DB `errorMessage`；若仍为空请检查 Worker 日志。密钥与 Base URL 在管理后台「大模型运行配置」维护。
+          </p>
+        </div>
+        <div className="overflow-x-auto max-h-56 overflow-y-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900/50 text-left text-xs text-gray-500 dark:text-gray-400">
+              <tr>
+                <th className="px-4 py-2">任务</th>
+                <th className="px-4 py-2">类型</th>
+                <th className="px-4 py-2">错误摘要</th>
+                <th className="px-4 py-2">时间</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {agentErrors.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-4 py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{row.id.slice(0, 12)}…</td>
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                    {row.taskType} / {row.agentType}
+                  </td>
+                  <td className="px-4 py-2 text-gray-800 dark:text-gray-200 max-w-md truncate" title={row.errorMessage || ''}>
+                    {row.errorMessage || '（无文本）'}
+                  </td>
+                  <td className="px-4 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {new Date(row.updatedAt).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              {!loading && agentErrors.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                    暂无 ERROR 任务
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
