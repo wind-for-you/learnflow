@@ -99,6 +99,7 @@ export default function LoginPage() {
         const credentials: LoginCredentials = {
           email: formData.email,
           password: formData.password,
+          loginPortal: 'app',
         };
         await login(credentials);
       }
@@ -155,6 +156,28 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {isRegistering ? '开始您的学习之旅' : '欢迎回到 LearnFlow'}
           </p>
+          {!isRegistering && (
+            <div className="mt-4 rounded-lg border border-sky-500/40 bg-sky-50 dark:bg-sky-950/40 px-3 py-2 text-left text-xs text-sky-900 dark:text-sky-100">
+              <p className="font-semibold">学习用户主站登录</p>
+              <p className="mt-1 opacity-90">
+                若您是<strong className="mx-0.5">平台管理员</strong>，请勿在此页登录（系统将拒绝）。请前往：
+              </p>
+              <ul className="mt-1 list-disc list-inside space-y-0.5">
+                <li>
+                  <Link to="/admin/login" className="underline font-medium text-amber-800 dark:text-amber-300">
+                    管理后台登录（/admin/login）
+                  </Link>
+                  — 用户与审计、LLM 配置
+                </li>
+                <li>
+                  <Link to="/ops/login" className="underline font-medium text-emerald-800 dark:text-emerald-300">
+                    运维后台登录（/ops/login）
+                  </Link>
+                  — 指标、队列、Agent 失败、D7
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* 错误提示 */}

@@ -277,9 +277,11 @@ export interface ListResponse<T> {
 }
 
 // 认证相关类型
+/** loginPortal：主站 app；管理后台 admin；运维 ops（服务端会校验角色与入口一致） */
 export interface LoginCredentials {
   email: string;
   password: string;
+  loginPortal?: 'app' | 'admin' | 'ops';
 }
 
 export interface RegisterCredentials {

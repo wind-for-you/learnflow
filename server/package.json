@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "db:seed": "prisma db seed",
     "test": "jest",
     "release:gate": "node scripts/release-gate-check.js"
   },
@@ -57,5 +58,8 @@
     "personal-growth"
   ],
   "author": "LearnFlow Team",
-  "license": "MIT"
+  "license": "MIT",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
 }

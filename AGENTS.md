@@ -33,6 +33,12 @@ Standard commands documented in `README.md` and `package.json`. Key points:
 6. **AI features are optional**: The `OPENROUTER_API_KEY` env var is optional. Without it, the server warns but all CRUD features (goals, tasks, check-ins) work normally. A fallback plan generator exists.
 7. **No lockfiles**: The repository has no `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml` — use `npm install` in both `client/` and `server/`.
 8. **Database credentials for local dev**: The `docker-compose.yml` uses `learnflow_user` / `learnflow_password` / `learnflow` as defaults. Match these in `server/.env` `DATABASE_URL`.
+9. **内置管理员与专用登录页**：启动时 `ensureBuiltInAdmin()` 会 upsert 默认账号（邮箱/密码见 `server/env.example`，可用 `BUILTIN_ADMIN_*` 覆盖）。密码 **bcrypt** 存库；**禁止**在 `POST /api/auth/register` 使用保留邮箱 `admin@learnflow.com`。
+   - **学习用户**：`http://localhost:5173/login`（`loginPortal=app`），**管理员账号在此会被拒绝**，避免与学员混用。
+   - **管理后台**：`http://localhost:5173/admin/login` → 成功后进入 `/admin`（用户、审计、LLM Profile）。
+   - **运维后台**：`http://localhost:5173/ops/login` → 成功后进入 `/ops`（指标、队列、Agent 失败、D7）。
+   - **手工种子**：`cd server && npm run db:seed`（等价于启动时的 ensure + LLM Profile）。
+   - **额外管理员**：仍可由现有 ADMIN 在管理后台改角色，或 Prisma Studio / SQL 将某用户 `role` 设为 `ADMIN`。
 
 ### to C SaaS 规划与 Agent 波次（中文）
 

@@ -24,6 +24,7 @@ import prisma from './shared/prisma';
 import logger from './shared/logger';
 import { validateEnv } from './shared/env';
 import { ensureLlmProviderProfiles } from './services/llmProfileSeed';
+import { ensureBuiltInAdmin, BUILTIN_ADMIN_EMAIL } from './services/builtInAdminSeed';
 
 // 导入 Passport 配置
 import passport from './config/passport';
@@ -229,6 +230,7 @@ async function startServer() {
     await prisma.$connect();
     logger.info('数据库连接成功');
 
+    await ensureBuiltInAdmin();
     await ensureLlmProviderProfiles();
 
     app.listen(PORT, () => {
@@ -241,6 +243,7 @@ async function startServer() {
         Boolean(process.env.OPENROUTER_API_KEY?.trim());
       logger.info(`AI 服务: ${aiOk ? '已配置(DASHSCOPE 或 OPENROUTER 密钥)' : '未配置'}`);
       logger.info(`Redis: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`);
+      logger.info(`内置管理员: ${BUILTIN_ADMIN_EMAIL}（请使用 /admin/login 或 /ops/login；生产务必改密）`);
     });
   } catch (error) {
     logger.error('服务器启动失败', error as Error);

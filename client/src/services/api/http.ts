@@ -25,9 +25,21 @@ api.interceptors.response.use(
   (response: any) => response,
   (error: any) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const reqPath = String(error.config?.url || '');
+      if (reqPath.includes('/auth/login')) {
+        // 登录接口返回 401：交给登录页展示，不清会话、不整页跳转
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        const path = window.location.pathname;
+        if (path.startsWith('/admin')) {
+          window.location.href = '/admin/login';
+        } else if (path.startsWith('/ops')) {
+          window.location.href = '/ops/login';
+        } else {
+          window.location.href = '/login';
+        }
+      }
     }
 
     const code = error?.code;

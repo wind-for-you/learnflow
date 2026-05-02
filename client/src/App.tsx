@@ -1,8 +1,9 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './components/Toast';
 import LoginPage from './components/LoginPage';
+import StaffPortalLoginPage from './components/StaffPortalLoginPage';
 import Layout from './components/Layout';
 import PageSkeleton from './components/Skeleton';
 import PrivacyPolicyPage from './components/legal/PrivacyPolicyPage';
@@ -47,13 +48,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <PageSkeleton />;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (user?.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function OpsRoute({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return <PageSkeleton />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/ops/login" replace state={{ from: location.pathname }} />;
   }
 
   if (user?.role !== 'ADMIN') {
@@ -104,12 +125,22 @@ function LazyAdmin({ children }: { children: React.ReactNode }) {
   );
 }
 
+function LazyOps({ children }: { children: React.ReactNode }) {
+  return (
+    <OpsRoute>
+      <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+    </OpsRoute>
+  );
+}
+
 // 主应用路由
 function AppRoutes() {
   return (
     <Routes>
       {/* 公开路由 */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin/login" element={<StaffPortalLoginPage portal="admin" />} />
+      <Route path="/ops/login" element={<StaffPortalLoginPage portal="ops" />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/legal/terms" element={<TermsOfServicePage />} />
@@ -132,7 +163,7 @@ function AppRoutes() {
       <Route path="/analytics" element={<LazyProtected><AnalyticsPage /></LazyProtected>} />
       <Route path="/task-center" element={<LazyProtected><TaskCenterPage /></LazyProtected>} />
       <Route path="/admin" element={<LazyAdmin><AdminPage /></LazyAdmin>} />
-      <Route path="/ops" element={<LazyAdmin><OpsPage /></LazyAdmin>} />
+      <Route path="/ops" element={<LazyOps><OpsPage /></LazyOps>} />
       <Route path="/achievements" element={<LazyProtected><AchievementPage /></LazyProtected>} />
 
       {/* 默认重定向 */}

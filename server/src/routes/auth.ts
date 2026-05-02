@@ -5,6 +5,7 @@ import { Role } from '@prisma/client';
 import { generateToken, requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import passport from '../config/passport';
 import prisma from '../shared/prisma';
+import { BUILTIN_ADMIN_EMAIL } from '../services/builtInAdminSeed';
 
 const router = Router();
 const oauthLoginEnabled = process.env.ENABLE_OAUTH_LOGIN === 'true';
@@ -34,10 +35,19 @@ router.post(
       }
 
       const { email, name, password } = req.body;
+      const emailNorm = String(email).trim().toLowerCase();
+
+      if (emailNorm === BUILTIN_ADMIN_EMAIL) {
+        res.status(403).json({
+          error: 'Forbidden',
+          message: '该邮箱为系统保留的管理员账号，不允许自助注册',
+        });
+        return;
+      }
 
       // 检查用户是否已存在
       const existingUser = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailNorm },
       });
 
       if (existingUser) {
@@ -55,7 +65,7 @@ router.post(
       // 创建用户
       const user = await prisma.user.create({
         data: {
-          email,
+          email: emailNorm,
           name,
           password: hashedPassword,
           role: Role.USER,
@@ -98,6 +108,7 @@ router.post(
   [
     body('email').isEmail().withMessage('请提供有效的邮箱地址'),
     body('password').notEmpty().withMessage('密码不能为空'),
+    body('loginPortal').optional().isIn(['app', 'admin', 'ops']).withMessage('loginPortal 无效'),
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -113,10 +124,12 @@ router.post(
       }
 
       const { email, password } = req.body;
+      const loginPortal = (req.body.loginPortal as 'app' | 'admin' | 'ops' | undefined) || 'app';
+      const emailNorm = String(email).trim().toLowerCase();
 
       // 查找用户
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailNorm },
       });
 
       if (!user) {
@@ -149,6 +162,26 @@ router.post(
         res.status(401).json({
           error: 'Unauthorized',
           message: '邮箱或密码错误',
+        });
+        return;
+      }
+
+      if (loginPortal === 'app' && user.role === Role.ADMIN) {
+        res.status(403).json({
+          error: 'Forbidden',
+          message:
+            '管理员账号请使用专用入口登录：管理后台 /admin/login 或 运维后台 /ops/login，勿在学习用户主站登录页登录。',
+        });
+        return;
+      }
+
+      if ((loginPortal === 'admin' || loginPortal === 'ops') && user.role !== Role.ADMIN) {
+        res.status(403).json({
+          error: 'Forbidden',
+          message:
+            loginPortal === 'ops'
+              ? '此页为「运维后台」登录入口，仅允许管理员。学习用户请前往主站 /login。'
+              : '此页为「管理后台」登录入口，仅允许管理员。学习用户请前往主站 /login。',
         });
         return;
       }
