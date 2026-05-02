@@ -426,7 +426,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* 数据与账号（Wave2 信任包） */}
+            {/* 数据与账号 */}
             <div className="card mt-6">
               <div className="card-header">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">数据与账号</h3>

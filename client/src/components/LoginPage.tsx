@@ -157,26 +157,16 @@ export default function LoginPage() {
             {isRegistering ? '开始您的学习之旅' : '欢迎回到 LearnFlow'}
           </p>
           {!isRegistering && (
-            <div className="mt-4 rounded-lg border border-sky-500/40 bg-sky-50 dark:bg-sky-950/40 px-3 py-2 text-left text-xs text-sky-900 dark:text-sky-100">
-              <p className="font-semibold">学习用户主站登录</p>
-              <p className="mt-1 opacity-90">
-                若您是<strong className="mx-0.5">平台管理员</strong>，请勿在此页登录（系统将拒绝）。请前往：
+            <details className="mt-4 rounded-lg border border-gray-200/80 dark:border-gray-700/80 bg-gray-50/80 dark:bg-gray-900/40 px-3 py-2 text-left text-xs text-gray-600 dark:text-gray-400 group">
+              <summary className="cursor-pointer list-none flex items-center gap-2 text-gray-500 dark:text-gray-500 marker:content-none">
+                <span className="select-none opacity-80">站内说明</span>
+                <span className="text-[10px] uppercase tracking-wider opacity-60">展开</span>
+              </summary>
+              <p className="mt-2 leading-relaxed">
+                本页仅供学习账号使用。若您持有<strong className="font-medium text-gray-700 dark:text-gray-300">内部运维身份</strong>
+                ，请使用组织下发的专用入口，勿在本页尝试登录。
               </p>
-              <ul className="mt-1 list-disc list-inside space-y-0.5">
-                <li>
-                  <Link to="/admin/login" className="underline font-medium text-amber-800 dark:text-amber-300">
-                    管理后台登录（/admin/login）
-                  </Link>
-                  — 用户与审计、LLM 配置
-                </li>
-                <li>
-                  <Link to="/ops/login" className="underline font-medium text-emerald-800 dark:text-emerald-300">
-                    运维后台登录（/ops/login）
-                  </Link>
-                  — 指标、队列、Agent 失败、D7
-                </li>
-              </ul>
-            </div>
+            </details>
           )}
         </div>
 

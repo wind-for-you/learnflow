@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { adminApi } from '../services/api';
 import type { AdminOverview, AdminUserListItem, AuditLogEntry, LlmActivePreview, LlmProfileAdminRow } from '../types';
 
 type AdminSection = 'users' | 'llm';
 
 export default function AdminPage() {
-  const [section, setSection] = useState<AdminSection>('users');
+  const { pathname } = useLocation();
+  const section: AdminSection = pathname.includes('/admin/integration') ? 'llm' : 'users';
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
@@ -205,98 +206,77 @@ export default function AdminPage() {
     }
   };
 
+  const card =
+    'rounded-xl border border-slate-800/90 bg-slate-900/55 text-slate-200 shadow-sm shadow-black/20';
+  const cardHead = 'px-4 py-3 border-b border-slate-800/90';
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">管理后台</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">用户、审计与 Wave 3.5 大模型运行配置（密钥仅存环境变量）</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={section === 'users' ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setSection('users')}
-            >
-              用户与审计
-            </button>
-            <button
-              type="button"
-              className={section === 'llm' ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setSection('llm')}
-            >
-              大模型运行配置
-            </button>
-            <Link to="/ops" className="btn-secondary inline-flex items-center">
-              运维指标
-            </Link>
-          </div>
-        </div>
+    <div className="p-6 max-w-[1200px] mx-auto space-y-6">
+      <div className="flex items-center justify-end">
         <button
-          className="btn-primary"
+          type="button"
+          className="rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white text-sm font-medium px-4 py-2 disabled:opacity-50"
           onClick={() => (section === 'users' ? void loadData() : void loadLlm())}
           disabled={section === 'users' ? loading : llmLoading}
         >
-          刷新
+          刷新当前页数据
         </button>
       </div>
 
       {error && (
-        <div className="rounded-md border border-error-300 bg-error-50 dark:bg-error-900/20 p-3 text-sm text-error-700 dark:text-error-200">
-          {error}
-        </div>
+        <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-3 text-sm text-rose-100">{error}</div>
       )}
 
       {section === 'llm' && llmError && (
-        <div className="rounded-md border border-error-300 bg-error-50 dark:bg-error-900/20 p-3 text-sm text-error-700 dark:text-error-200">
-          {llmError}
-        </div>
+        <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-3 text-sm text-rose-100">{llmError}</div>
       )}
 
       {section === 'llm' && (
         <div className="space-y-4">
-          <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 text-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">当前解析结果（不落库密钥）</h2>
+          <div className={`${card} p-4 text-sm`}>
+            <h2 className="text-sm font-semibold text-slate-100 mb-2">当前接入解析（密钥不落库）</h2>
             {llmActive ? (
-              <ul className="space-y-1 text-gray-700 dark:text-gray-300">
+              <ul className="space-y-1 text-slate-300">
                 <li>
-                  Profile：<span className="font-medium">{llmActive.profileLabel}</span>（{llmActive.profileSlug}）
+                  方案：<span className="font-medium text-slate-100">{llmActive.profileLabel}</span>
+                  <span className="text-slate-500">（{llmActive.profileSlug}）</span>
                 </li>
                 <li>通道：{llmActive.channel}</li>
-                <li className="break-all">Base URL：{llmActive.baseURL}</li>
+                <li className="break-all">服务地址：{llmActive.baseURL}</li>
                 <li>模型：{llmActive.model}</li>
                 <li>超时：{llmActive.timeoutMs} ms</li>
-                <li>环境密钥：{llmActive.hasApiKey ? '已检测到' : '未配置（将走模板/规则回退）'}</li>
+                <li>服务端密钥：{llmActive.hasApiKey ? '已配置' : '未配置（将使用内置规则或降级能力）'}</li>
               </ul>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400">暂无可用配置</p>
+              <p className="text-slate-500">暂无可用配置</p>
             )}
-            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-              默认使用阿里百炼兼容端点；可在 `.env` 设置 `DASHSCOPE_API_KEY`（或过渡期沿用 `OPENROUTER_API_KEY` 指向兼容网关）。详见 `server/env.example`。
+            <p className="mt-3 text-xs text-slate-500 leading-relaxed">
+              密钥仅在服务器环境变量中配置，切勿在浏览器或聊天中传输。部署与变量说明见运维文档。
             </p>
           </div>
 
-          <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Provider Profile</h2>
-              {llmLoading && <span className="text-xs text-gray-500">加载中…</span>}
+          <div className={`${card} overflow-hidden`}>
+            <div className={`${cardHead} flex justify-between items-center`}>
+              <h2 className="text-sm font-semibold text-slate-100">接入方案列表</h2>
+              {llmLoading && <span className="text-xs text-slate-500">加载中…</span>}
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300">
+                <thead className="bg-slate-950/60 text-slate-400">
                   <tr>
-                    <th className="text-left px-4 py-2">标识</th>
+                    <th className="text-left px-4 py-2">方案</th>
                     <th className="text-left px-4 py-2">通道</th>
-                    <th className="text-left px-4 py-2">密钥(env)</th>
+                    <th className="text-left px-4 py-2">密钥（服务端）</th>
                     <th className="text-left px-4 py-2">默认</th>
                     <th className="text-left px-4 py-2">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {llmProfiles.map((p) => (
-                    <tr key={p.id} className="border-t border-gray-100 dark:border-gray-700 align-top">
+                    <tr key={p.id} className="border-t border-slate-800/80 align-top">
                       <td className="px-4 py-2">
-                        <div className="font-medium text-gray-900 dark:text-white">{p.label}</div>
-                        <div className="text-xs text-gray-500">{p.slug}</div>
+                        <div className="font-medium text-slate-100">{p.label}</div>
+                        <div className="text-xs text-slate-500">{p.slug}</div>
                         {editing?.id === p.id ? (
                           <div className="mt-2 space-y-2 max-w-md">
                             <input
@@ -333,20 +313,20 @@ export default function AdminPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-                            <div className="break-all">URL: {p.baseUrl || '（环境默认）'}</div>
-                            <div>模型: {p.model || '（环境默认）'}</div>
+                          <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                            <div className="break-all">地址: {p.baseUrl || '（随部署默认）'}</div>
+                            <div>模型: {p.model || '（随部署默认）'}</div>
                             <div>超时: {p.timeoutMs} ms</div>
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-800 dark:text-gray-200">{p.channel}</td>
+                      <td className="px-4 py-2 text-slate-300">{p.channel}</td>
                       <td className="px-4 py-2">
-                        <span className={p.envKeyConfigured ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>
+                        <span className={p.envKeyConfigured ? 'text-emerald-400' : 'text-amber-400'}>
                           {p.envKeyConfigured ? '已配置' : '未配置'}
                         </span>
                       </td>
-                      <td className="px-4 py-2">{p.isDefault ? '是' : '否'}</td>
+                      <td className="px-4 py-2 text-slate-300">{p.isDefault ? '是' : '否'}</td>
                       <td className="px-4 py-2 space-y-2">
                         {!p.isDefault && (
                           <button
@@ -381,8 +361,8 @@ export default function AdminPage() {
                   ))}
                   {!llmLoading && llmProfiles.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                        无 Profile，请确认数据库已迁移并重启服务
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                        暂无接入方案，请确认服务已升级并重启
                       </td>
                     </tr>
                   )}
@@ -401,21 +381,21 @@ export default function AdminPage() {
           { label: '目标数', value: overview?.goals ?? '-' },
           { label: '计划数', value: overview?.plans ?? '-' },
           { label: '任务数', value: overview?.tasks ?? '-' },
-          { label: 'Agent任务', value: overview?.agentTasks ?? '-' },
-        ].map((card) => (
-          <div key={card.label} className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4">
-            <div className="text-xs text-gray-500 dark:text-gray-400">{card.label}</div>
-            <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{card.value}</div>
+          { label: '智能任务', value: overview?.agentTasks ?? '-' },
+        ].map((c) => (
+          <div key={c.label} className={`${card} p-4`}>
+            <div className="text-xs text-slate-500">{c.label}</div>
+            <div className="mt-1 text-xl font-semibold text-slate-100">{c.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">用户管理</h2>
-          <span className="text-xs text-gray-500 dark:text-gray-400">管理员 {adminCount} 人</span>
+      <div className={`${card} overflow-hidden`}>
+        <div className={`${cardHead} flex items-center justify-between`}>
+          <h2 className="text-sm font-semibold text-slate-100">用户管理</h2>
+          <span className="text-xs text-slate-500">管理员 {adminCount} 人</span>
         </div>
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div className="px-4 py-3 border-b border-slate-800/90 grid grid-cols-1 md:grid-cols-6 gap-3">
           <input
             value={userSearch}
             onChange={(e) => setUserSearch(e.target.value)}
@@ -458,7 +438,7 @@ export default function AdminPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300">
+            <thead className="bg-slate-950/60 text-slate-400">
               <tr>
                 <th className="text-left px-4 py-2">用户</th>
                 <th className="text-left px-4 py-2">角色</th>
@@ -469,10 +449,10 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} className="border-t border-gray-100 dark:border-gray-700">
+                <tr key={user.id} className="border-t border-slate-800/80">
                   <td className="px-4 py-2">
-                    <div className="font-medium text-gray-900 dark:text-white">{user.name}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                    <div className="font-medium text-slate-100">{user.name}</div>
+                    <div className="text-xs text-slate-500">{user.email}</div>
                   </td>
                   <td className="px-4 py-2">
                     <select
@@ -499,17 +479,17 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                    目标 {user._count.goals} / 计划 {user._count.plans} / Agent {user._count.agentTasks}
+                  <td className="px-4 py-2 text-slate-300">
+                    目标 {user._count.goals} / 计划 {user._count.plans} / 智能任务 {user._count.agentTasks}
                   </td>
-                  <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
+                  <td className="px-4 py-2 text-slate-500">
                     {new Date(user.createdAt).toLocaleString()}
                   </td>
                 </tr>
               ))}
               {!loading && users.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
                     暂无用户数据
                   </td>
                 </tr>
@@ -517,7 +497,7 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+        <div className="px-4 py-3 border-t border-slate-800/90 flex items-center justify-between text-xs text-slate-500">
           <span>第 {userPagination.page}/{userPagination.totalPages} 页，共 {userPagination.total} 条</span>
           <div className="flex items-center gap-2">
             <button className="btn-secondary py-1 px-2 text-xs" disabled={userPage <= 1} onClick={() => setUserPage((p) => Math.max(1, p - 1))}>
@@ -534,11 +514,11 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">审计日志（最近 10 条）</h2>
+      <div className={`${card} overflow-hidden`}>
+        <div className={cardHead}>
+          <h2 className="text-sm font-semibold text-slate-100">审计日志（最近 10 条）</h2>
         </div>
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="px-4 py-3 border-b border-slate-800/90 grid grid-cols-1 md:grid-cols-5 gap-3">
           <input
             value={logActionFilter}
             onChange={(e) => setLogActionFilter(e.target.value)}
@@ -562,21 +542,21 @@ export default function AdminPage() {
             导出 CSV
           </button>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+        <div className="divide-y divide-slate-800/80">
           {logs.map((log) => (
             <div key={log.id} className="px-4 py-3 text-sm">
-              <div className="font-medium text-gray-900 dark:text-white">{log.action}</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
+              <div className="font-medium text-slate-100">{log.action}</div>
+              <div className="text-xs text-slate-500">
                 操作人 {log.actor.name} ({log.actor.email}) · 目标 {log.targetType}
                 {log.targetId ? `/${log.targetId}` : ''} · {new Date(log.createdAt).toLocaleString()}
               </div>
             </div>
           ))}
           {!loading && logs.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">暂无审计日志</div>
+            <div className="px-4 py-8 text-center text-sm text-slate-500">暂无审计日志</div>
           )}
         </div>
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+        <div className="px-4 py-3 border-t border-slate-800/90 flex items-center justify-between text-xs text-slate-500">
           <span>第 {logPagination.page}/{logPagination.totalPages} 页，共 {logPagination.total} 条</span>
           <div className="flex items-center gap-2">
             <button className="btn-secondary py-1 px-2 text-xs" disabled={logPage <= 1} onClick={() => setLogPage((p) => Math.max(1, p - 1))}>

@@ -218,7 +218,7 @@ export interface OpsSystemOverview {
   serverTime: string;
 }
 
-/** Wave 3.5：后台 LLM Profile（密钥状态仅布尔，无明文） */
+/** 管理端：大模型接入方案行（密钥仅布尔状态，无明文） */
 export interface LlmProfileAdminRow {
   id: string;
   slug: string;

@@ -5,6 +5,8 @@ import { ToastProvider } from './components/Toast';
 import LoginPage from './components/LoginPage';
 import StaffPortalLoginPage from './components/StaffPortalLoginPage';
 import Layout from './components/Layout';
+import AdminConsoleLayout from './components/console/AdminConsoleLayout';
+import OpsConsoleLayout from './components/console/OpsConsoleLayout';
 import PageSkeleton from './components/Skeleton';
 import PrivacyPolicyPage from './components/legal/PrivacyPolicyPage';
 import TermsOfServicePage from './components/legal/TermsOfServicePage';
@@ -117,18 +119,22 @@ function LazyProtected({ children }: { children: React.ReactNode }) {
   );
 }
 
-function LazyAdmin({ children }: { children: React.ReactNode }) {
+function AdminConsoleGate() {
   return (
     <AdminRoute>
-      <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+      <Suspense fallback={<PageSkeleton />}>
+        <AdminConsoleLayout />
+      </Suspense>
     </AdminRoute>
   );
 }
 
-function LazyOps({ children }: { children: React.ReactNode }) {
+function OpsConsoleGate() {
   return (
     <OpsRoute>
-      <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+      <Suspense fallback={<PageSkeleton />}>
+        <OpsConsoleLayout />
+      </Suspense>
     </OpsRoute>
   );
 }
@@ -162,8 +168,12 @@ function AppRoutes() {
       <Route path="/reviews" element={<LazyProtected><ReviewPage /></LazyProtected>} />
       <Route path="/analytics" element={<LazyProtected><AnalyticsPage /></LazyProtected>} />
       <Route path="/task-center" element={<LazyProtected><TaskCenterPage /></LazyProtected>} />
-      <Route path="/admin" element={<LazyAdmin><AdminPage /></LazyAdmin>} />
-      <Route path="/ops" element={<LazyOps><OpsPage /></LazyOps>} />
+      <Route path="/admin" element={<AdminConsoleGate />}>
+        <Route path="*" element={<Suspense fallback={<PageSkeleton />}><AdminPage /></Suspense>} />
+      </Route>
+      <Route path="/ops" element={<OpsConsoleGate />}>
+        <Route path="*" element={<Suspense fallback={<PageSkeleton />}><OpsPage /></Suspense>} />
+      </Route>
       <Route path="/achievements" element={<LazyProtected><AchievementPage /></LazyProtected>} />
 
       {/* 默认重定向 */}

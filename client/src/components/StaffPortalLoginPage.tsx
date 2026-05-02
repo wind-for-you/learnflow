@@ -11,16 +11,16 @@ const portalCopy: Record<
   { title: string; subtitle: string; badge: string; accent: string; panelClass: string }
 > = {
   admin: {
-    title: '管理后台登录',
-    subtitle: '用户管理 · 审计 · 大模型运行配置（Wave 3.5）',
-    badge: 'ADMIN CONSOLE',
+    title: '管理控制台',
+    subtitle: '账号与权限 · 审计 · 模型与接入配置',
+    badge: 'STAFF · ADMIN',
     accent: 'from-amber-600 to-orange-700',
     panelClass: 'border-amber-500/40 bg-amber-950/30 text-amber-100',
   },
   ops: {
-    title: '运维后台登录',
-    subtitle: '发布指标 · 队列健康 · D7 留存 · Agent 失败排查',
-    badge: 'OPS CONSOLE',
+    title: '运行观测台',
+    subtitle: '容量与成功率 · 异步管线 · 留存洞察 · 异常摘要',
+    badge: 'STAFF · OPS',
     accent: 'from-emerald-600 to-teal-800',
     panelClass: 'border-emerald-500/40 bg-emerald-950/30 text-emerald-100',
   },
@@ -90,31 +90,21 @@ export default function StaffPortalLoginPage({ portal }: { portal: StaffPortal }
           <p className="mt-1 text-sm opacity-90">{copy.subtitle}</p>
           <p className="mt-3 text-xs leading-relaxed opacity-80 border-t border-white/10 pt-3">
             {portal === 'admin'
-              ? '此页面仅用于管理员进入「管理后台」。学习用户请勿在此输入账号；若误进请前往主站登录页。'
-              : '此页面仅用于管理员进入「运维监控」。与「管理后台」用途不同：侧重指标、队列与 Agent 排障，不含用户运营配置入口。'}
+              ? '仅供已授权人员配置组织与智能服务接入。学员请使用主站登录页。'
+              : '仅供已授权人员查看运行健康度与异常摘要。配置类操作请使用管理控制台。'}
           </p>
         </div>
 
         <div className="rounded-xl bg-slate-900/90 border border-slate-700 p-6 shadow-xl">
-          <div className="flex flex-wrap gap-2 text-xs mb-4">
-            <Link to="/login" className="text-sky-400 hover:underline">
-              ← 学习用户主站登录（/login）
+          <div className="mb-4">
+            <Link to="/login" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+              ← 返回学员登录
             </Link>
-            <span className="text-slate-600">|</span>
-            {portal === 'admin' ? (
-              <Link to="/ops/login" className="text-emerald-400 hover:underline">
-                我要去「运维后台」登录 →
-              </Link>
-            ) : (
-              <Link to="/admin/login" className="text-amber-400 hover:underline">
-                我要去「管理后台」登录 →
-              </Link>
-            )}
           </div>
 
           {wrongRole && (
             <div className="mb-4 rounded-lg border border-rose-500/50 bg-rose-950/40 p-3 text-sm text-rose-100">
-              当前已以非管理员身份登录，无法进入{portal === 'admin' ? '管理' : '运维'}后台。请先退出再使用管理员账号登录。
+              当前已以非管理员身份登录，无法进入此控制台。请先退出再使用授权账号登录。
               <button type="button" className="mt-2 block w-full btn-secondary text-xs py-2" onClick={() => logout()}>
                 退出当前账号
               </button>
