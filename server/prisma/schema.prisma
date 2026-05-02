@@ -60,6 +60,10 @@ model User {
   password  String   // 密码字段（必需）
   role      Role     @default(USER)
   isActive  Boolean  @default(true)
+  /// 用户主动注销时间（软删）；与 isActive=false 并存时禁止登录与 API
+  deletedAt DateTime?
+  /// 首启引导完成或跳过时间（Wave3）；非空则不再展示引导
+  onboardingFinishedAt DateTime?
   avatar    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -75,8 +79,24 @@ model User {
   agentTasks AgentTask[]
   agentMemories AgentMemory[]
   auditLogs AuditLog[]
+  productEvents ProductEvent[]
 
   @@map("users")
+}
+
+/// 产品埋点事件（Wave1：增长与 D7 留存分析）
+model ProductEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  props     Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([name, createdAt])
+  @@map("product_events")
 }
 
 model AuditLog {

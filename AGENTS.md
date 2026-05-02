@@ -16,7 +16,7 @@ Standard commands documented in `README.md` and `package.json`. Key points:
 
 - **Backend**: `cd server && npm run dev` (uses `tsx watch` for hot-reload)
 - **Frontend**: `cd client && npm run dev` (Vite dev server)
-- **Lint**: `cd client && npm run lint` (ESLint; server has no dedicated lint script — use `npx tsc --noEmit` for type checks)
+- **Lint**: `cd client && npm run lint` (ESLint; server has no dedicated lint script — 类型检查用 `cd server && npm run build` 或 `node ./node_modules/typescript/bin/tsc --noEmit`，勿用易命中 npm 假包的 `npx tsc`)
 - **Tests**: `cd server && npm test` (Jest, currently no test files exist)
 - **Build**: `cd client && npm run build` (tsc + vite build)
 
@@ -33,3 +33,9 @@ Standard commands documented in `README.md` and `package.json`. Key points:
 6. **AI features are optional**: The `OPENROUTER_API_KEY` env var is optional. Without it, the server warns but all CRUD features (goals, tasks, check-ins) work normally. A fallback plan generator exists.
 7. **No lockfiles**: The repository has no `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml` — use `npm install` in both `client/` and `server/`.
 8. **Database credentials for local dev**: The `docker-compose.yml` uses `learnflow_user` / `learnflow_password` / `learnflow` as defaults. Match these in `server/.env` `DATABASE_URL`.
+
+### to C SaaS 规划与 Agent 波次（中文）
+
+- [RICE 一页表 `15-toc-saas-rice-backlog.md](docs/product/planning/15-toc-saas-rice-backlog.md)`：必达范围、优先级、里程碑。
+- [Agent 波次执行计划 `16-agent-saas-dev-plan.md](docs/product/planning/16-agent-saas-dev-plan.md)`：Wave0–Wave10、验证方式、不可行项与 §8.1 已确认结论。
+- PR 模板：`[.github/pull_request_template.md](.github/pull_request_template.md)`。

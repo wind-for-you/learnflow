@@ -8,14 +8,17 @@ import {
   PencilIcon,
   CheckCircleIcon,
   XMarkIcon,
+  ArrowDownTrayIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { authApi } from '../services/api';
+import { authApi, accountApi } from '../services/api';
+import { flushQueue, track } from '../utils/productAnalytics';
 import { useToast } from './Toast';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, logout, exitSessionSilently } = useAuth();
   const toast = useToast();
 
   // 密码修改状态
@@ -36,6 +39,11 @@ export default function ProfilePage() {
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // 初始化表单数据
   useEffect(() => {
@@ -417,10 +425,107 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
+
+            {/* 数据与账号（Wave2 信任包） */}
+            <div className="card mt-6">
+              <div className="card-header">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">数据与账号</h3>
+              </div>
+              <div className="card-body space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  导出为 JSON 包含目标、计划、任务、打卡、复盘与成就等核心数据。注销后账号不可再登录，部分字段将匿名化；关联数据保留策略以隐私政策为准。
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    disabled={exportLoading}
+                    onClick={async () => {
+                      try {
+                        setExportLoading(true);
+                        await accountApi.downloadExport();
+                        toast.success('已开始下载导出文件');
+                      } catch {
+                        toast.error('导出失败，请稍后重试');
+                      } finally {
+                        setExportLoading(false);
+                      }
+                    }}
+                    className="btn-outline text-sm inline-flex items-center gap-2"
+                  >
+                    <ArrowDownTrayIcon className="w-4 h-4" />
+                    {exportLoading ? '导出中…' : '导出我的数据 (JSON)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmInput('');
+                      setShowDeleteModal(true);
+                    }}
+                    className="text-sm inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                    注销账号
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* 修改密码弹窗 */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">确认注销账号</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                此操作不可撤销。请输入确认文案：
+                <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-900 px-1 rounded">{accountApi.DELETE_CONFIRM}</code>
+              </p>
+              <input
+                type="text"
+                className="input w-full mb-4"
+                value={deleteConfirmInput}
+                onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                placeholder={accountApi.DELETE_CONFIRM}
+                autoComplete="off"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  className="flex-1 btn-outline"
+                  disabled={deleteLoading}
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 text-white bg-red-600 hover:bg-red-700 rounded-lg py-2 text-sm font-medium disabled:opacity-50"
+                  disabled={deleteLoading || deleteConfirmInput !== accountApi.DELETE_CONFIRM}
+                  onClick={async () => {
+                    try {
+                      setDeleteLoading(true);
+                      track('account_delete_confirmed', {});
+                      await flushQueue();
+                      await accountApi.deleteAccount(accountApi.DELETE_CONFIRM);
+                      toast.success('账号已注销');
+                      setShowDeleteModal(false);
+                      exitSessionSilently();
+                      navigate('/login');
+                    } catch {
+                      toast.error('注销失败，请稍后重试');
+                    } finally {
+                      setDeleteLoading(false);
+                    }
+                  }}
+                >
+                  {deleteLoading ? '处理中…' : '确认注销'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
-import { query, validationResult } from 'express-validator';
+import { Prisma } from '@prisma/client';
+import { body, query, validationResult } from 'express-validator';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { grayReleaseGuard } from '../middleware/grayRelease';
 import prisma from '../shared/prisma';
@@ -9,6 +10,46 @@ import { ensureStructuredReviewSummary } from '../services/aiSchemaGuard';
 const router = Router();
 
 router.use(requireAuth);
+
+/**
+ * POST /api/analytics/events
+ * 产品埋点（Wave1）：已登录用户批量写入，不经灰度开关（全量用户可上报）。
+ */
+router.post(
+  '/events',
+  [
+    body('events').isArray({ min: 1, max: 50 }),
+    body('events.*.name').isString().isLength({ min: 1, max: 80 }).matches(/^[a-zA-Z0-9_.]+$/),
+    body('events.*.props').optional().isObject(),
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ error: 'Validation Error', details: errors.array() });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const raw = req.body.events as Array<{ name: string; props?: Record<string, unknown> | null }>;
+
+    try {
+      await prisma.productEvent.createMany({
+        data: raw.map((e) => ({
+          userId,
+          name: e.name,
+          props:
+            e.props === undefined || e.props === null
+              ? undefined
+              : (e.props as Prisma.InputJsonValue),
+        })),
+      });
+      res.status(201).json({ success: true, data: { count: raw.length } });
+    } catch (error) {
+      console.error('写入 product_events 失败:', error);
+      res.status(500).json({ error: 'Server Error', message: '写入埋点失败' });
+    }
+  },
+);
 
 /**
  * GET /api/analytics/overview

@@ -1,41 +1,122 @@
-import { useEffect, useState } from 'react';
-import { SparklesIcon, ChartBarIcon, ClockIcon, FireIcon } from '@heroicons/react/24/outline';
+import { useEffect, useState, useRef } from 'react';
+import { SparklesIcon, ChartBarIcon, ClockIcon, FireIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../contexts/AuthContext';
 import { analyticsApi, checkinApi } from '../services/api';
+import { readWeeklyReportCache } from '../utils/weeklyReportCache';
 import StudyTimeChart from './charts/StudyTimeChart';
 import type { AnalyticsOverview, Checkin, WeeklyReport } from '../types';
 
 export default function AnalyticsPage() {
+  const { user } = useAuth();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [isLoading, setIsLoading] = useState(true);
+  const [weeklyReportLoading, setWeeklyReportLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const analyticsMountedRef = useRef(true);
 
   useEffect(() => {
-    const loadData = async () => {
+    analyticsMountedRef.current = true;
+    return () => {
+      analyticsMountedRef.current = false;
+    };
+  }, []);
+
+  const handleRefreshWeeklyReport = async () => {
+    if (!user?.id) return;
+    setWeeklyReportLoading(true);
+    try {
+      const data = await analyticsApi.refreshWeeklyReport(user.id);
+      if (analyticsMountedRef.current) {
+        setWeeklyReport(data);
+      }
+    } catch (e) {
+      console.warn('刷新 AI 周报失败:', e);
+    } finally {
+      if (analyticsMountedRef.current) {
+        setWeeklyReportLoading(false);
+      }
+    }
+  };
+
+  // 概览 + 打卡与「时间范围」相关；不阻塞在 AI 周报上
+  useEffect(() => {
+    const loadMain = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const [overviewResp, reportResp, checkinsResp] = await Promise.all([
+        const [overviewResp, checkinsResp] = await Promise.all([
           analyticsApi.getOverview(range),
-          analyticsApi.getWeeklyReport(),
           checkinApi.getCheckins({ limit: 60 }),
         ]);
-
+        if (!analyticsMountedRef.current) return;
         setOverview(overviewResp);
-        setWeeklyReport(reportResp);
         setCheckins(checkinsResp.checkins);
       } catch (err) {
         console.error('加载分析页数据失败:', err);
-        setError('加载分析数据失败，请稍后重试');
+        if (analyticsMountedRef.current) {
+          setError('加载分析数据失败，请稍后重试');
+        }
       } finally {
-        setIsLoading(false);
+        if (analyticsMountedRef.current) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadData();
+    void loadMain();
   }, [range]);
+
+  // 周报与 range 无关；当日命中 localStorage 则不请求接口
+  useEffect(() => {
+    let cancelled = false;
+    const uid = user?.id;
+
+    void (async () => {
+      if (!uid) {
+        if (!cancelled) {
+          setWeeklyReport(null);
+          setWeeklyReportLoading(false);
+        }
+        return;
+      }
+
+      const cached = readWeeklyReportCache(uid);
+      if (cached) {
+        if (!cancelled && analyticsMountedRef.current) {
+          setWeeklyReport(cached);
+        }
+        setWeeklyReportLoading(false);
+        return;
+      }
+
+      if (!cancelled) {
+        setWeeklyReport(null);
+        setWeeklyReportLoading(true);
+      }
+      try {
+        const reportResp = await analyticsApi.getWeeklyReport({ userId: uid });
+        if (!cancelled && analyticsMountedRef.current) {
+          setWeeklyReport(reportResp);
+        }
+      } catch (err) {
+        console.warn('AI 周报加载失败:', err);
+        if (!cancelled && analyticsMountedRef.current) {
+          setWeeklyReport(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setWeeklyReportLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   if (isLoading) {
     return (
@@ -134,30 +215,53 @@ export default function AnalyticsPage() {
         <StudyTimeChart checkins={checkins} period="month" isDark={false} />
 
         <div className="card border border-primary-200 dark:border-primary-900/40">
-          <div className="card-header">
+          <div className="card-header flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
               <SparklesIcon className="h-5 w-5 text-primary-600 mr-2" />
               AI 周建议
             </h2>
+            {user?.id && (
+              <button
+                type="button"
+                onClick={() => void handleRefreshWeeklyReport()}
+                disabled={weeklyReportLoading}
+                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                title="清除当日缓存并重新请求 AI（会产生模型调用费用）"
+              >
+                <ArrowPathIcon className={`h-3.5 w-3.5 ${weeklyReportLoading ? 'animate-spin' : ''}`} />
+                重新生成
+              </button>
+            )}
           </div>
           <div className="card-body space-y-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300">{weeklyReport?.aiSummary.summary || '暂无 AI 建议'}</p>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">亮点</p>
-              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {(weeklyReport?.aiSummary.highlights || []).slice(0, 3).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">建议</p>
-              <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                {(weeklyReport?.aiSummary.suggestions || []).slice(0, 3).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
+            {weeklyReportLoading && !weeklyReport ? (
+              <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 py-4">
+                <div className="spinner w-5 h-5 shrink-0" />
+                <span>正在生成 AI 建议，图表与指标可先查看…</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  {weeklyReport?.aiSummary.summary || '暂无 AI 建议'}
+                </p>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">亮点</p>
+                  <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                    {(weeklyReport?.aiSummary.highlights || []).slice(0, 3).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">建议</p>
+                  <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                    {(weeklyReport?.aiSummary.suggestions || []).slice(0, 3).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -67,6 +67,7 @@ router.post(
           role: true,
           avatar: true,
           createdAt: true,
+          onboardingFinishedAt: true,
         },
       });
 
@@ -126,6 +127,14 @@ router.post(
         return;
       }
 
+      if (user.deletedAt) {
+        res.status(403).json({
+          error: 'Forbidden',
+          message: '账号已注销',
+        });
+        return;
+      }
+
       if (!user.isActive) {
         res.status(403).json({
           error: 'Forbidden',
@@ -156,6 +165,8 @@ router.post(
           role: user.role,
           isActive: user.isActive,
           avatar: user.avatar,
+          createdAt: user.createdAt,
+          onboardingFinishedAt: user.onboardingFinishedAt,
         },
         token,
       });
@@ -316,6 +327,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response):
         isActive: true,
         avatar: true,
         createdAt: true,
+        onboardingFinishedAt: true,
         _count: {
           select: {
             goals: true,
@@ -339,12 +351,86 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response):
     });
   } catch (error) {
     console.error('获取用户信息错误:', error);
+    const devDetail =
+      process.env.NODE_ENV !== 'production' && error instanceof Error ? error.message : undefined;
     res.status(500).json({
       error: 'Server Error',
-      message: '服务器内部错误',
+      message: devDetail || '服务器内部错误',
     });
   }
 });
+
+/**
+ * POST /api/auth/onboarding/finish
+ * 标记首启引导已结束（完成或跳过，或老用户已有目标时静默关闭）
+ */
+router.post(
+  '/onboarding/finish',
+  requireAuth,
+  [
+    body('skipped').optional().isBoolean(),
+    body('legacyHasGoals').optional().isBoolean(),
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ error: 'Validation Error', details: errors.array() });
+        return;
+      }
+
+      const userId = req.user!.id;
+      await prisma.user.update({
+        where: { id: userId },
+        data: { onboardingFinishedAt: new Date() },
+      });
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          avatar: true,
+          createdAt: true,
+          onboardingFinishedAt: true,
+          _count: {
+            select: {
+              goals: true,
+              plans: true,
+              checkins: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: '用户不存在',
+        });
+        return;
+      }
+
+      res.json({
+        message: 'ok',
+        user,
+      });
+    } catch (error) {
+      console.error('完成引导错误:', error);
+      const devDetail =
+        process.env.NODE_ENV !== 'production' && error instanceof Error ? error.message : undefined;
+      res.status(500).json({
+        error: 'Server Error',
+        message:
+          devDetail ||
+          '更新失败（若刚拉代码，请在 server 目录执行 npx prisma db push 并重启后端）',
+      });
+    }
+  }
+);
 
 /**
  * POST /api/auth/logout

@@ -10,7 +10,7 @@ type PlanTaskInput = GeneratePlanRequest & {
   goalId: string;
 };
 
-function isPlanTaskInput(input: Prisma.JsonValue): input is PlanTaskInput {
+function isPlanTaskInput(input: unknown): input is PlanTaskInput {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return false;
   const data = input as Record<string, unknown>;
   return (
@@ -133,7 +133,7 @@ async function runAdaptive(userId: string, input: Prisma.JsonValue): Promise<Pri
   const suggestion = await analyzeAndSuggest(userId, planId);
   return {
     planId,
-    suggestion,
+    suggestion: suggestion as unknown as Prisma.JsonValue,
   };
 }
 

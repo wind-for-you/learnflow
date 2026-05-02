@@ -46,6 +46,12 @@
 - `14-agent-architecture-next-phase.md`
   - 借鉴 Harness 的 Agent 工程化设计
   - 包含下一阶段详细任务、架构演进与技术栈变更建议
+- `15-toc-saas-rice-backlog.md`（v1.3）
+  - to C SaaS 化路线的一页 RICE 优先级表
+  - 与 PRD 指标、Sprint backlog、执行计划边界对齐；含 **必达范围**（含 **Capacitor 必达**、双支付、MinIO、视频白名单与分档配额）、**卖点亮点**、里程碑与 DoR
+- `16-agent-saas-dev-plan.md`（v1.1）
+  - 基于 `15` 的 **Agent 自动开发波次计划**（逐项验证）
+  - 含 **Wave 4–10**（MinIO、Stripe+微信+支付宝、`PaymentProvider`、**Capacitor 必达**）、§8.1 **已回填确认结论**、不可控风险（审核/商户资质）
 
 ## 建议使用顺序
 
@@ -56,6 +62,8 @@
 5. 用 `05-api-contract-draft.md` 完成前后端接口对齐与联调。
 6. 用 `06-project-board-init-checklist.md` 初始化 Jira/Linear 看板并启动日常管理。
 7. 用 `14-agent-architecture-next-phase.md` 启动 Agent Runtime 阶段改造。
+8. to C 商业化排期时参考 `15-toc-saas-rice-backlog.md`，并回写 PRD 边界（支付/套餐）。
+9. Agent/研发按波次落地时参考 `16-agent-saas-dev-plan.md`（移动选型、视频双形态、验证与待确认项）。
 
 ## 维护约定
 

@@ -1,4 +1,6 @@
 import Navbar from './Navbar';
+import AppFooter from './AppFooter';
+import CookieConsentBanner from './CookieConsentBanner';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -9,14 +11,13 @@ export default function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* 导航栏 */}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {user && <Navbar />}
-      
-      {/* 主要内容 */}
-      <main className={user ? 'pb-16 md:pb-0' : ''}>
-        {children}
-      </main>
+
+      <main className={`flex-1 ${user ? 'pb-16 md:pb-0' : ''}`}>{children}</main>
+
+      <AppFooter />
+      <CookieConsentBanner />
     </div>
   );
 }

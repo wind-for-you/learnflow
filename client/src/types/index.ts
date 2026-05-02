@@ -7,6 +7,13 @@ export interface User {
   isActive?: boolean;
   avatar?: string;
   createdAt: string;
+  /** ISO 时间；存在则不再展示首启引导 */
+  onboardingFinishedAt?: string | null;
+  _count?: {
+    goals: number;
+    plans: number;
+    checkins: number;
+  };
 }
 
 // 目标类型

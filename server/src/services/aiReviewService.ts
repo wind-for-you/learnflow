@@ -220,7 +220,8 @@ ${data.goalSummaries.map((g) => `  - ${g.title}（${g.status}，进度 ${g.progr
         'HTTP-Referer': 'https://learnflow.app',
         'X-Title': 'LearnFlow Learning Platform',
       },
-      timeout: 30000,
+      // 短于前端默认超时，优先触发服务端回退模板，避免与客户端 30s 竞态
+      timeout: 20000,
     },
   );
 

@@ -7,6 +7,25 @@ export const opsApi = {
     return unwrapResponse<OpsSystemOverview>(response.data, (raw) => raw).data;
   },
 
+  getRetentionD7: async (): Promise<
+    Array<{
+      cohortDay: string;
+      registered: number;
+      retainedD7: number;
+      rateApprox: number;
+    }>
+  > => {
+    const response = await api.get('/ops/retention-d7');
+    return unwrapResponse<
+      Array<{
+        cohortDay: string;
+        registered: number;
+        retainedD7: number;
+        rateApprox: number;
+      }>
+    >(response.data, (raw) => raw).data;
+  },
+
   getQueueMetrics: async (): Promise<{
     queue: Record<string, number>;
     dbTaskState: Array<{ state: string; count: number }>;

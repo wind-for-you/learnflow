@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   PlusIcon,
@@ -9,18 +9,25 @@ import {
   BookOpenIcon,
   CalendarDaysIcon,
   SparklesIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { goalApi, checkinApi, taskApi, analyticsApi } from '../services/api';
+import { goalApi, checkinApi, taskApi, analyticsApi, authApi } from '../services/api';
+import OnboardingWizard from './onboarding/OnboardingWizard';
+import { clearOnboardingProgress } from '../utils/onboardingLocal';
 import StudyTimeChart from './charts/StudyTimeChart';
 import ProgressChart from './charts/ProgressChart';
 import CheckinCalendar from './charts/CheckinCalendar';
 import PomodoroTimer from './PomodoroTimer';
-import type { Goal, Checkin, Task, CheckinStats, WeeklyReport } from '../types';
+import type { Goal, Checkin, Task, CheckinStats, WeeklyReport, AnalyticsOverview } from '../types';
+import { readWeeklyReportCache } from '../utils/weeklyReportCache';
+import { track } from '../utils/productAnalytics';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const legacyOnboardingSyncRef = useRef(false);
 
   // 状态管理
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -30,12 +37,20 @@ export default function Dashboard() {
   const [checkinStats, setCheckinStats] = useState<CheckinStats | null>(null);
   const [todayCheckin, setTodayCheckin] = useState<Checkin | null>(null);
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
+  const [weeklyReportLoading, setWeeklyReportLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const dashboardMountedRef = useRef(true);
 
-  // 加载数据
   useEffect(() => {
-    loadDashboardData();
+    dashboardMountedRef.current = true;
+    return () => {
+      dashboardMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    track('app_dashboard_view', {});
   }, []);
 
   // 计算今日任务
@@ -51,60 +66,142 @@ export default function Dashboard() {
       .slice(0, 5);
   };
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
+      setWeeklyReport(null);
 
-      // 并行加载所有数据
-      const [
-        goalsResponse,
-        checkinsResponse,
-        tasksResponse,
-        statsResponse,
-        todayResponse,
-        analyticsOverviewResponse,
-        weeklyReportResponse,
-      ] = await Promise.all([
-        goalApi.getGoals({ limit: 10 }),
-        checkinApi.getCheckins({ limit: 30 }), // 最近30天的打卡
-        taskApi.getTasks({ limit: 10 }), // 最近10个任务
-        checkinApi.getCheckinStats('month'), // 月度统计
-        checkinApi.getTodayCheckin(), // 今日打卡
-        analyticsApi.getOverview('30d'),
-        analyticsApi.getWeeklyReport(),
-      ]);
+      const overviewSoft = analyticsApi.getOverview('30d').catch((overviewErr) => {
+        console.warn('Analytics 概览加载失败，已使用打卡统计:', overviewErr);
+        return null as AnalyticsOverview | null;
+      });
+
+      const [goalsResponse, checkinsResponse, tasksResponse, statsResponse, todayResponse, overviewMaybe] =
+        await Promise.all([
+          goalApi.getGoals({ limit: 10 }),
+          checkinApi.getCheckins({ limit: 30 }),
+          taskApi.getTasks({ limit: 10 }),
+          checkinApi.getCheckinStats('month'),
+          checkinApi.getTodayCheckin(),
+          overviewSoft,
+        ]);
+
+      if (!dashboardMountedRef.current) return;
 
       setGoals(goalsResponse.goals);
       setCheckins(checkinsResponse.checkins);
       setRecentTasks(getRecentTasks(tasksResponse.tasks));
       setTodayTasks(getTodayTasks(tasksResponse.tasks));
-      setCheckinStats(statsResponse);
+      if (overviewMaybe) {
+        setCheckinStats({
+          ...statsResponse,
+          streaks: {
+            ...statsResponse.streaks,
+            current: overviewMaybe.streak,
+          },
+          overallStats: {
+            ...statsResponse.overallStats,
+            totalHours: Math.round((overviewMaybe.studyMinutes / 60) * 10) / 10,
+          },
+        });
+      } else {
+        setCheckinStats(statsResponse);
+      }
       setTodayCheckin(todayResponse.checkin || null);
-      setWeeklyReport(weeklyReportResponse);
 
-      // 优先使用后端 analytics 概览数据作为统计卡片来源
-      const overview = analyticsOverviewResponse;
-      setCheckinStats(prev =>
-        prev
-          ? {
-              ...prev,
-              streaks: {
-                ...prev.streaks,
-                current: overview.streak,
-              },
-              overallStats: {
-                ...prev.overallStats,
-                totalHours: Math.round((overview.studyMinutes / 60) * 10) / 10,
-              },
+      // 首屏不等待 AI 周报（最慢），先展示主体
+      setIsLoading(false);
+
+      const uid = user?.id;
+      if (uid) {
+        const cached = readWeeklyReportCache(uid);
+        if (cached) {
+          if (dashboardMountedRef.current) {
+            setWeeklyReport(cached);
+          }
+        } else {
+          setWeeklyReportLoading(true);
+          try {
+            const weeklyReportResponse = await analyticsApi.getWeeklyReport({ userId: uid });
+            if (dashboardMountedRef.current) {
+              setWeeklyReport(weeklyReportResponse);
             }
-          : prev,
-      );
+          } catch (weeklyErr) {
+            console.warn('AI 周报加载失败:', weeklyErr);
+            if (dashboardMountedRef.current) {
+              setWeeklyReport(null);
+            }
+          } finally {
+            setWeeklyReportLoading(false);
+          }
+        }
+      } else {
+        if (dashboardMountedRef.current) {
+          setWeeklyReport(null);
+        }
+        setWeeklyReportLoading(false);
+      }
     } catch (error) {
       console.error('加载仪表板数据失败:', error);
-      setError('加载数据失败，请刷新页面重试');
+      if (dashboardMountedRef.current) {
+        setError('加载数据失败，请刷新页面重试');
+      }
     } finally {
-      setIsLoading(false);
+      if (dashboardMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [user?.id]);
+
+  // 须在 loadDashboardData 声明之后，否则会触发 TDZ（Cannot access before initialization）
+  useEffect(() => {
+    void loadDashboardData();
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    legacyOnboardingSyncRef.current = false;
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || isLoading) return;
+    if (user.onboardingFinishedAt) {
+      clearOnboardingProgress(user.id);
+      setOnboardingOpen(false);
+      return;
+    }
+    if (goals.length > 0) {
+      if (legacyOnboardingSyncRef.current) return;
+      legacyOnboardingSyncRef.current = true;
+      void authApi
+        .finishOnboarding({ legacyHasGoals: true })
+        .then((res) => {
+          updateUser({ onboardingFinishedAt: res.user.onboardingFinishedAt ?? undefined });
+          clearOnboardingProgress(user.id);
+          setOnboardingOpen(false);
+        })
+        .catch(() => {
+          legacyOnboardingSyncRef.current = false;
+        });
+      return;
+    }
+    setOnboardingOpen(true);
+  }, [user, goals, isLoading]);
+
+  const handleRefreshWeeklyReport = async () => {
+    if (!user?.id) return;
+    setWeeklyReportLoading(true);
+    try {
+      const data = await analyticsApi.refreshWeeklyReport(user.id);
+      if (dashboardMountedRef.current) {
+        setWeeklyReport(data);
+      }
+    } catch (e) {
+      console.warn('刷新 AI 周报失败:', e);
+    } finally {
+      if (dashboardMountedRef.current) {
+        setWeeklyReportLoading(false);
+      }
     }
   };
 
@@ -157,6 +254,7 @@ export default function Dashboard() {
   const totalStudyTime = checkinStats?.overallStats.totalHours || 0;
 
   return (
+    <>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 页面头部 */}
         <div className="mb-8">
@@ -247,13 +345,34 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {weeklyReportLoading && !weeklyReport && (
+          <div className="card mb-8 border border-gray-200 dark:border-gray-700">
+            <div className="card-body flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+              <div className="spinner w-5 h-5 shrink-0" />
+              <span>正在生成 AI 周报摘要，可先浏览下方内容…</span>
+            </div>
+          </div>
+        )}
+
         {weeklyReport && (
           <div className="card mb-8 border border-primary-200 dark:border-primary-900/40">
-            <div className="card-header">
+            <div className="card-header flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                 <SparklesIcon className="h-5 w-5 text-primary-600 mr-2" />
                 AI 周报摘要
               </h3>
+              {user?.id && (
+                <button
+                  type="button"
+                  onClick={() => void handleRefreshWeeklyReport()}
+                  disabled={weeklyReportLoading}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                  title="清除当日缓存并重新请求 AI（会产生模型调用费用）"
+                >
+                  <ArrowPathIcon className={`h-3.5 w-3.5 ${weeklyReportLoading ? 'animate-spin' : ''}`} />
+                  重新生成
+                </button>
+              )}
             </div>
             <div className="card-body space-y-3">
               <p className="text-sm text-gray-700 dark:text-gray-300">{weeklyReport.aiSummary.summary}</p>
@@ -538,5 +657,17 @@ export default function Dashboard() {
           <PomodoroTimer />
         </div>
       </div>
+      {user?.id ? (
+        <OnboardingWizard
+          open={onboardingOpen}
+          userId={user.id}
+          onFinished={(u) => {
+            updateUser({ onboardingFinishedAt: u.onboardingFinishedAt ?? undefined });
+            setOnboardingOpen(false);
+            void loadDashboardData();
+          }}
+        />
+      ) : null}
+    </>
   );
 }

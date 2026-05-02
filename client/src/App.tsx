@@ -5,6 +5,9 @@ import { ToastProvider } from './components/Toast';
 import LoginPage from './components/LoginPage';
 import Layout from './components/Layout';
 import PageSkeleton from './components/Skeleton';
+import PrivacyPolicyPage from './components/legal/PrivacyPolicyPage';
+import TermsOfServicePage from './components/legal/TermsOfServicePage';
+import AiTransparencyPage from './components/legal/AiTransparencyPage';
 
 import './App.css';
 
@@ -108,6 +111,9 @@ function AppRoutes() {
       {/* 公开路由 */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/legal/terms" element={<TermsOfServicePage />} />
+      <Route path="/legal/ai" element={<AiTransparencyPage />} />
 
       {/* 受保护的路由 — 懒加载 */}
       <Route path="/dashboard" element={<LazyProtected><Dashboard /></LazyProtected>} />

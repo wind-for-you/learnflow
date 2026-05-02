@@ -12,3 +12,4 @@ export { achievementApi } from './api/achievementApi';
 export { agentTaskApi } from './api/agentTaskApi';
 export { adminApi } from './api/adminApi';
 export { opsApi } from './api/opsApi';
+export { accountApi } from './api/accountApi';

@@ -56,4 +56,17 @@ export const authApi = {
     const { message } = unwrapResponse<unknown>(response.data);
     return { message: message || '密码修改成功' };
   },
+
+  finishOnboarding: async (opts?: {
+    skipped?: boolean;
+    legacyHasGoals?: boolean;
+  }): Promise<{ user: User }> => {
+    const body: Record<string, boolean> = {};
+    if (opts?.skipped === true) body.skipped = true;
+    if (opts?.skipped === false) body.skipped = false;
+    if (opts?.legacyHasGoals === true) body.legacyHasGoals = true;
+    const response = await api.post('/auth/onboarding/finish', body);
+    const { data } = unwrapResponse<{ user: User }>(response.data, (raw) => ({ user: raw.user }));
+    return data;
+  },
 };

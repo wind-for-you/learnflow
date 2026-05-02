@@ -28,6 +28,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             where: { email: profile.emails?.[0]?.value },
           });
 
+          if (user && (user.deletedAt || !user.isActive)) {
+            return done(null, false);
+          }
+
           if (!user) {
             // 创建新用户
             user = await prisma.user.create({
@@ -97,6 +101,10 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
             where: { email: userEmail },
           });
 
+          if (user && (user.deletedAt || !user.isActive)) {
+            return done(null, false);
+          }
+
           if (!user) {
             // 创建新用户
             console.log('创建新GitHub用户...');
@@ -154,14 +162,22 @@ if (process.env.JWT_SECRET) {
               name: true,
               role: true,
               avatar: true,
+              isActive: true,
+              deletedAt: true,
             },
           });
 
-          if (user) {
-            return done(null, user);
-          } else {
-            return done(null, false);
+          if (user && !user.deletedAt && user.isActive) {
+            return done(null, {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              isActive: user.isActive,
+              avatar: user.avatar,
+            });
           }
+          return done(null, false);
         } catch (error) {
           console.error('JWT 策略错误:', error);
           return done(error, false);
@@ -186,9 +202,22 @@ passport.deserializeUser(async (id: string, done) => {
         name: true,
         role: true,
         avatar: true,
+        deletedAt: true,
+        isActive: true,
       },
     });
-    done(null, user);
+    if (!user || user.deletedAt || !user.isActive) {
+      done(null, null);
+      return;
+    }
+    done(null, {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      isActive: user.isActive,
+      avatar: user.avatar,
+    });
   } catch (error) {
     console.error('反序列化用户错误:', error);
     done(error, null);

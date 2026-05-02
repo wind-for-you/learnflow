@@ -68,7 +68,7 @@ class AgentTaskService {
       return null;
     }
 
-    if (![AgentTaskState.ERROR, AgentTaskState.CANCELLED].includes(task.state)) {
+    if (task.state !== AgentTaskState.ERROR && task.state !== AgentTaskState.CANCELLED) {
       return task;
     }
 
@@ -80,7 +80,7 @@ class AgentTaskService {
         endedAt: null,
         errorMessage: null,
         requestId: null,
-        output: null,
+        output: Prisma.JsonNull,
       },
     });
 

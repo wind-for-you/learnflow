@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../shared/prisma';
 import { requireAdmin, requireAuth } from '../middleware/auth';
 import { getReleaseMetrics } from '../shared/releaseState';
@@ -35,6 +36,46 @@ router.get('/queue-metrics', async (_req, res: Response): Promise<void> => {
         count: item._count.state,
       })),
     },
+  });
+});
+
+/**
+ * GET /api/ops/retention-d7
+ * 内部留存预览：按注册日 cohort，近似 D7（注册后第 6–8 天内有任意 product_events）占比。
+ */
+router.get('/retention-d7', async (_req, res: Response): Promise<void> => {
+  const rows = await prisma.$queryRaw<
+    { cohort_day: Date; registered: bigint; retained_d7: bigint }[]
+  >(Prisma.sql`
+    SELECT
+      date_trunc('day', u."createdAt") AS cohort_day,
+      COUNT(*)::bigint AS registered,
+      COUNT(*) FILTER (
+        WHERE EXISTS (
+          SELECT 1 FROM product_events pe
+          WHERE pe."userId" = u.id
+            AND pe."createdAt" >= u."createdAt" + interval '6 days'
+            AND pe."createdAt" < u."createdAt" + interval '8 days'
+        )
+      )::bigint AS retained_d7
+    FROM users u
+    GROUP BY 1
+    ORDER BY 1 DESC
+    LIMIT 60
+  `);
+
+  res.json({
+    success: true,
+    data: rows.map((r) => {
+      const reg = Number(r.registered);
+      const ret = Number(r.retained_d7);
+      return {
+        cohortDay: r.cohort_day.toISOString().slice(0, 10),
+        registered: reg,
+        retainedD7: ret,
+        rateApprox: reg > 0 ? Math.round((ret / reg) * 10000) / 10000 : 0,
+      };
+    }),
   });
 });
 

@@ -1,7 +1,8 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { User, AuthResponse, LoginCredentials, RegisterCredentials, ApiError } from '../types';
 import { authApi } from '../services/api';
+import { flushQueue, track } from '../utils/productAnalytics';
 
 // 认证状态类型
 interface AuthState {
@@ -26,6 +27,8 @@ interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
+  /** 仅清除本地会话（不请求 /logout），用于账号已注销后避免 403 */
+  exitSessionSilently: () => void;
   clearError: () => void;
   updateUser: (userData: Partial<User>) => void;
   checkAuth: () => Promise<void>;
@@ -105,17 +108,52 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // 登录函数
-  const login = async (credentials: LoginCredentials) => {
+  const checkAuth = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+
+    if (!token) {
+      dispatch({ type: 'AUTH_LOGOUT' });
+      return;
+    }
+
+    if (!userStr) {
+      console.log('有token但没有user，尝试从API获取用户信息...');
+    }
+
+    try {
+      const response = await authApi.me();
+      localStorage.setItem('user', JSON.stringify(response.user));
+      dispatch({
+        type: 'AUTH_SUCCESS',
+        payload: {
+          user: response.user,
+          token,
+        },
+      });
+      console.log('✅ 认证检查成功，用户信息已更新');
+      track('auth_session_restored', {});
+    } catch (error) {
+      console.error('认证检查失败:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      dispatch({ type: 'AUTH_LOGOUT' });
+    }
+  }, []);
+
+  const updateUser = useCallback((userData: Partial<User>) => {
+    dispatch({ type: 'UPDATE_USER', payload: userData });
+  }, []);
+
+  const login = useCallback(async (credentials: LoginCredentials) => {
     try {
       dispatch({ type: 'AUTH_START' });
-      
+
       const response: AuthResponse = await authApi.login(credentials);
-      
-      // 保存到本地存储
+
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      
+
       dispatch({
         type: 'AUTH_SUCCESS',
         payload: {
@@ -123,6 +161,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           token: response.token,
         },
       });
+      track('login_success', { method: 'password' });
     } catch (error) {
       const apiError = error as ApiError;
       dispatch({
@@ -131,19 +170,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
       throw error;
     }
-  };
+  }, []);
 
-  // 注册函数
-  const register = async (credentials: RegisterCredentials) => {
+  const register = useCallback(async (credentials: RegisterCredentials) => {
     try {
       dispatch({ type: 'AUTH_START' });
-      
+
       const response: AuthResponse = await authApi.register(credentials);
-      
-      // 保存到本地存储
+
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      
+
       dispatch({
         type: 'AUTH_SUCCESS',
         payload: {
@@ -151,6 +188,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           token: response.token,
         },
       });
+      track('register_success', {});
     } catch (error) {
       const apiError = error as ApiError;
       dispatch({
@@ -159,78 +197,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
       throw error;
     }
-  };
+  }, []);
 
-  // 登出函数
-  const logout = () => {
-    // 清除本地存储
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // 调用 API 登出（可选，因为 JWT 是无状态的）
-    authApi.logout().catch(console.error);
-    
-    dispatch({ type: 'AUTH_LOGOUT' });
-  };
-
-  // 清除错误
-  const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  };
-
-  // 更新用户信息
-  const updateUser = (userData: Partial<User>) => {
-    if (state.user) {
-      const updatedUser = { ...state.user, ...userData };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      dispatch({ type: 'UPDATE_USER', payload: userData });
-    }
-  };
-
-  // 检查认证状态
-  const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    
-    if (!token) {
+  const logout = useCallback(() => {
+    void flushQueue().finally(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      authApi.logout().catch(console.error);
       dispatch({ type: 'AUTH_LOGOUT' });
-      return;
-    }
+    });
+  }, []);
 
-    // 如果有token但没有user，尝试从API获取用户信息
-    if (!userStr) {
-      console.log('有token但没有user，尝试从API获取用户信息...');
-    }
-
-    try {
-      // 验证令牌是否有效
-      const response = await authApi.me();
-      
-      // 保存用户信息到localStorage
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: {
-          user: response.user,
-          token,
-        },
-      });
-      
-      console.log('✅ 认证检查成功，用户信息已更新');
-    } catch (error) {
-      console.error('认证检查失败:', error);
-      // 清除无效的认证信息
+  const exitSessionSilently = useCallback(() => {
+    void flushQueue().finally(() => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       dispatch({ type: 'AUTH_LOGOUT' });
+    });
+  }, []);
+
+  const clearError = useCallback(() => {
+    dispatch({ type: 'CLEAR_ERROR' });
+  }, []);
+
+  useEffect(() => {
+    if (state.user && state.token && state.isAuthenticated) {
+      localStorage.setItem('user', JSON.stringify(state.user));
     }
-  };
+  }, [state.user, state.token, state.isAuthenticated]);
 
   // 组件挂载时检查认证状态
   useEffect(() => {
-    checkAuth();
-  }, []);
+    void checkAuth();
+  }, [checkAuth]);
 
   // 监听 storage 事件（多标签页同步）
   useEffect(() => {
@@ -309,15 +308,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [checkAuth]);
 
-  const contextValue: AuthContextType = {
-    ...state,
-    login,
-    register,
-    logout,
-    clearError,
-    updateUser,
-    checkAuth,
-  };
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      ...state,
+      login,
+      register,
+      logout,
+      exitSessionSilently,
+      clearError,
+      updateUser,
+      checkAuth,
+    }),
+    [state, login, register, logout, exitSessionSilently, clearError, updateUser, checkAuth],
+  );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }

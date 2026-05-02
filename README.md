@@ -116,6 +116,12 @@ chmod +x deploy/scripts/deploy-debian.sh
 
 完整部署文档：[DEPLOYMENT.md](DEPLOYMENT.md)
 
+## 📋 to C SaaS 与研发波次（Wave）
+
+- [RICE 优先级与必达项（v1.3）](docs/product/planning/15-toc-saas-rice-backlog.md)
+- [Agent 自动开发波次计划（v1.1）](docs/product/planning/16-agent-saas-dev-plan.md)
+- PR 请使用模板：[`.github/pull_request_template.md`](.github/pull_request_template.md)
+
 ## 📖 使用指南
 
 ### 1. 创建学习目标

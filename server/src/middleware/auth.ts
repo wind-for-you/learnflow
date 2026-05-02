@@ -49,6 +49,7 @@ export const requireAuth = async (
         name: true,
         role: true,
         isActive: true,
+        deletedAt: true,
       },
     });
 
@@ -56,6 +57,14 @@ export const requireAuth = async (
       res.status(401).json({ 
         error: 'Unauthorized', 
         message: '用户不存在' 
+      });
+      return;
+    }
+
+    if (user.deletedAt) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: '账号已注销',
       });
       return;
     }
@@ -68,8 +77,13 @@ export const requireAuth = async (
       return;
     }
 
-    // 将用户信息添加到请求对象中
-    req.user = user;
+    req.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      isActive: user.isActive,
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
@@ -191,11 +205,18 @@ export const optionalAuth = async (
         name: true,
         role: true,
         isActive: true,
+        deletedAt: true,
       },
     });
 
-    if (user) {
-      req.user = user;
+    if (user && !user.deletedAt && user.isActive) {
+      req.user = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isActive: user.isActive,
+      };
     }
 
     next();

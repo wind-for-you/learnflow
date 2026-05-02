@@ -15,6 +15,7 @@ import achievementRoutes from './routes/achievements';
 import adaptiveRoutes from './routes/adaptive';
 import analyticsRoutes from './routes/analytics';
 import opsRoutes from './routes/ops';
+import accountRoutes from './routes/account';
 import agentTaskRoutes from './routes/agentTasks';
 import agentMemoryRoutes from './routes/agentMemories';
 import adminRoutes from './routes/admin';
@@ -39,8 +40,17 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
+function resolveCorsOrigin(): string | string[] {
+  const clientUrl = process.env.CLIENT_URL;
+  const devDefaults = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  if (process.env.NODE_ENV === 'production') {
+    return clientUrl || devDefaults[0];
+  }
+  return [...new Set([...(clientUrl ? [clientUrl] : []), ...devDefaults])];
+}
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: resolveCorsOrigin(),
   credentials: true,
   optionsSuccessStatus: 200,
 }));
@@ -62,7 +72,13 @@ const limiter = rateLimit({
   skip: (req) => {
     // 在开发环境跳过某些路径的限制
     if (process.env.NODE_ENV !== 'production') {
-      const skipPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/me'];
+      const skipPaths = [
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/me',
+        '/api/auth/onboarding/finish',
+        '/api/account/export',
+      ];
       return skipPaths.some(path => req.path === path);
     }
     return false;
@@ -110,6 +126,7 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/adaptive', adaptiveRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ops', opsRoutes);
+app.use('/api/account', accountRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent-tasks', agentTaskRoutes);
 app.use('/api/agent-memories', agentMemoryRoutes);

@@ -6,6 +6,9 @@ import type { OpsSystemOverview } from '../types';
 export default function OpsPage() {
   const [overview, setOverview] = useState<OpsSystemOverview | null>(null);
   const [taskState, setTaskState] = useState<Array<{ state: string; count: number }>>([]);
+  const [retention, setRetention] = useState<
+    Array<{ cohortDay: string; registered: number; retainedD7: number; rateApprox: number }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,9 +16,14 @@ export default function OpsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [overviewResp, queueResp] = await Promise.all([opsApi.getSystemOverview(), opsApi.getQueueMetrics()]);
+      const [overviewResp, queueResp, retentionResp] = await Promise.all([
+        opsApi.getSystemOverview(),
+        opsApi.getQueueMetrics(),
+        opsApi.getRetentionD7(),
+      ]);
       setOverview(overviewResp);
       setTaskState(queueResp.dbTaskState);
+      setRetention(retentionResp);
     } catch (err) {
       const message = (err as { message?: string })?.message || '加载运维数据失败';
       setError(message);
@@ -79,6 +87,46 @@ export default function OpsPage() {
               <div className="text-base font-medium text-gray-900 dark:text-white">{value}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">D7 留存预览（内部）</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            按注册日 cohort；D7 定义为注册后第 6–8 天内有任意 product_events。无埋点数据时 retained 可能为 0。
+          </p>
+        </div>
+        <div className="overflow-x-auto max-h-64 overflow-y-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900/50 text-left text-xs text-gray-500 dark:text-gray-400">
+              <tr>
+                <th className="px-4 py-2">注册日</th>
+                <th className="px-4 py-2">注册数</th>
+                <th className="px-4 py-2">D7 回访（近似）</th>
+                <th className="px-4 py-2">比例</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {retention.map((row) => (
+                <tr key={row.cohortDay}>
+                  <td className="px-4 py-2 text-gray-800 dark:text-gray-200">{row.cohortDay}</td>
+                  <td className="px-4 py-2 text-gray-800 dark:text-gray-200">{row.registered}</td>
+                  <td className="px-4 py-2 text-gray-800 dark:text-gray-200">{row.retainedD7}</td>
+                  <td className="px-4 py-2 text-gray-800 dark:text-gray-200">
+                    {(row.rateApprox * 100).toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+              {!loading && retention.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                    暂无 cohort 数据
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
