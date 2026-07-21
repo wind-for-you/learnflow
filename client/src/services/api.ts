@@ -7,6 +7,7 @@ export { taskApi } from './api/taskApi';
 export { checkinApi } from './api/checkinApi';
 export { aiTaskApi } from './api/aiTaskApi';
 export { reviewApi } from './api/reviewApi';
+export { adaptiveApi } from './api/adaptiveApi';
 export { analyticsApi } from './api/analyticsApi';
 export { achievementApi } from './api/achievementApi';
 export { agentTaskApi } from './api/agentTaskApi';

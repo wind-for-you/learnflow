@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   UserIcon,
-  Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
   ShieldCheckIcon,
@@ -109,15 +108,6 @@ export default function UserMenu() {
             >
               <UserIcon className="h-4 w-4 mr-3" />
               个人信息
-            </Link>
-
-            <Link
-              to="/settings"
-              onClick={handleMenuClick}
-              className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-            >
-              <Cog6ToothIcon className="h-4 w-4 mr-3" />
-              系统设置
             </Link>
 
             {user.role === 'ADMIN' && (

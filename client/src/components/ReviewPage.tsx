@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   PlusIcon,
@@ -7,9 +8,10 @@ import {
   XMarkIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
-import { reviewApi } from '../services/api';
+import { reviewApi, planApi, adaptiveApi } from '../services/api';
 import { useToast } from './Toast';
-import type { Review } from '../types';
+import type { Review, Plan, AdaptiveSuggestion } from '../types';
+import { track } from '../utils/productAnalytics';
 
 type PeriodFilter = 'all' | 'weekly' | 'monthly' | 'quarterly';
 
@@ -32,6 +34,12 @@ const FILTER_TABS: { key: PeriodFilter; label: string }[] = [
   { key: 'quarterly', label: '季度复盘' },
 ];
 
+const STATUS_LABELS: Record<AdaptiveSuggestion['status'], string> = {
+  on_track: '进度正常',
+  falling_behind: '略有落后',
+  ahead: '进度领先',
+};
+
 export default function ReviewPage() {
   const toast = useToast();
 
@@ -45,6 +53,11 @@ export default function ReviewPage() {
 
   const [formPeriod, setFormPeriod] = useState<'weekly' | 'monthly' | 'quarterly'>('weekly');
   const [formContent, setFormContent] = useState('');
+
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [adaptiveSuggestion, setAdaptiveSuggestion] = useState<AdaptiveSuggestion | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const loadReviews = useCallback(async () => {
     try {
@@ -64,6 +77,35 @@ export default function ReviewPage() {
     loadReviews();
   }, [loadReviews]);
 
+  useEffect(() => {
+    void planApi.getPlans().then(({ plans: planList }) => {
+      setPlans(planList);
+      if (planList.length > 0) {
+        setSelectedPlanId((current) => current || planList[0].id);
+      }
+    }).catch(() => {
+      setPlans([]);
+    });
+  }, []);
+
+  const handleAnalyzePlan = async () => {
+    if (!selectedPlanId) {
+      toast.error('请先选择学习计划');
+      return;
+    }
+    try {
+      setIsAnalyzing(true);
+      const suggestion = await adaptiveApi.analyze(selectedPlanId);
+      setAdaptiveSuggestion(suggestion);
+      toast.success('已生成计划调整建议');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '获取调整建议失败';
+      toast.error(msg);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!formContent.trim()) {
       toast.error('请输入复盘内容');
@@ -77,6 +119,7 @@ export default function ReviewPage() {
         content: formContent.trim(),
       });
       setReviews(prev => [response.review, ...prev]);
+      track('review_created', { period: formPeriod });
       toast.success(response.message || '复盘创建成功');
       setShowForm(false);
       setFormContent('');
@@ -145,6 +188,67 @@ export default function ReviewPage() {
           新建复盘
         </button>
       </div>
+
+      {plans.length > 0 && (
+        <div className="card mb-8 border border-primary-200 dark:border-primary-900/40">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <SparklesIcon className="h-5 w-5 text-primary-600" />
+              学习计划调整建议
+            </h2>
+          </div>
+          <div className="card-body space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <select
+                value={selectedPlanId}
+                onChange={(e) => setSelectedPlanId(e.target.value)}
+                className="input flex-1"
+              >
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>{plan.title}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void handleAnalyzePlan()}
+                disabled={isAnalyzing || !selectedPlanId}
+                className="btn-primary whitespace-nowrap disabled:opacity-50"
+              >
+                {isAnalyzing ? '分析中…' : '获取 AI 调整建议'}
+              </button>
+            </div>
+
+            {adaptiveSuggestion && (
+              <div className="rounded-lg bg-gray-50 dark:bg-gray-900/40 p-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {STATUS_LABELS[adaptiveSuggestion.status]}
+                  </span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    完成率 {adaptiveSuggestion.completionRate}%
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{adaptiveSuggestion.suggestion}</p>
+                {adaptiveSuggestion.adjustments.length > 0 && (
+                  <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                    {adaptiveSuggestion.adjustments.slice(0, 3).map((item) => (
+                      <li key={`${item.week}-${item.action}`}>
+                        第 {item.week} 周：{item.action === 'reduce' ? '减量' : item.action === 'increase' ? '加量' : '保持'} — {item.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link
+                  to={`/plans/${selectedPlanId}`}
+                  className="inline-block text-sm text-primary-600 hover:text-primary-500"
+                >
+                  去计划页执行任务 →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Create form modal */}
       {showForm && (

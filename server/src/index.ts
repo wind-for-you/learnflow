@@ -17,7 +17,6 @@ import analyticsRoutes from './routes/analytics';
 import opsRoutes from './routes/ops';
 import accountRoutes from './routes/account';
 import agentTaskRoutes from './routes/agentTasks';
-import agentMemoryRoutes from './routes/agentMemories';
 import adminRoutes from './routes/admin';
 import videoResourceRoutes from './routes/videoResources';
 import { metricsMiddleware } from './middleware/metrics';
@@ -150,7 +149,6 @@ app.use('/api/ops', opsRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent-tasks', agentTaskRoutes);
-app.use('/api/agent-memories', agentMemoryRoutes);
 app.use('/api/video-resources', videoResourceRoutes);
 
 // 404 处理

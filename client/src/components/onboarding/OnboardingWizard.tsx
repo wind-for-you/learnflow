@@ -18,7 +18,7 @@ import {
 export interface OnboardingWizardProps {
   open: boolean;
   userId: string;
-  onFinished: (user: User) => void;
+  onFinished: (user: User, options?: { redirectToCheckin?: boolean }) => void;
 }
 
 function initialPlanForm(goalId: string, goalTitle: string): GeneratePlanRequest {
@@ -105,7 +105,7 @@ export default function OnboardingWizard({ open, userId, onFinished }: Onboardin
   }, [open, step]);
 
   const finishServer = useCallback(
-    async (opts: { skipped: boolean; legacy?: boolean }) => {
+    async (opts: { skipped: boolean; legacy?: boolean; redirectToCheckin?: boolean }) => {
       await flushQueue();
       const { user } = await authApi.finishOnboarding({
         skipped: opts.skipped,
@@ -117,10 +117,13 @@ export default function OnboardingWizard({ open, userId, onFinished }: Onboardin
           track('onboarding_skipped', { step });
         } else {
           track('onboarding_completed', {});
+          if (opts.redirectToCheckin) {
+            track('onboarding_to_checkin', {});
+          }
         }
       }
       await flushQueue();
-      onFinished(user);
+      onFinished(user, { redirectToCheckin: opts.redirectToCheckin && !opts.skipped });
     },
     [onFinished, userId, step],
   );
@@ -162,8 +165,26 @@ export default function OnboardingWizard({ open, userId, onFinished }: Onboardin
     setLoading(true);
     try {
       const { plan } = await planApi.generatePlan(planForm);
+      track('plan_generated', { source: 'onboarding', planId: plan.id });
       setGeneratedPlan(plan);
-      setTasksPreview((plan.tasks || []).slice(0, 8));
+      const fromWeeks =
+        plan.weeklyPlans?.flatMap((w) =>
+          (w.tasks || []).map((t, idx) => ({
+            id: `week-${w.week}-day-${t.day}-${idx}`,
+            planId: plan.id,
+            title: t.title,
+            week: w.week,
+            day: t.day,
+            completed: false,
+            description: t.description,
+            estimatedTime: t.estimatedTime,
+            resources: t.resources,
+            userId: '',
+            createdAt: '',
+            updatedAt: '',
+          })),
+        ) || [];
+      setTasksPreview((fromWeeks.length > 0 ? fromWeeks : plan.tasks || []).slice(0, 8));
       saveOnboardingProgress(userId, { step: 3, goalId: plan.goalId, planId: plan.id });
       setStep(3);
     } catch (err: unknown) {
@@ -176,7 +197,7 @@ export default function OnboardingWizard({ open, userId, onFinished }: Onboardin
 
   const handleComplete = () => {
     setLoading(true);
-    void finishServer({ skipped: false })
+    void finishServer({ skipped: false, redirectToCheckin: true })
       .catch(() => setError('保存完成状态失败'))
       .finally(() => setLoading(false));
   };
@@ -328,19 +349,29 @@ export default function OnboardingWizard({ open, userId, onFinished }: Onboardin
                   <li className="px-3 py-3 text-gray-500">暂无任务条目，可在任务列表中查看。</li>
                 ) : (
                   tasksPreview.map((t) => (
-                    <li key={t.id} className="px-3 py-2 flex justify-between gap-2 text-gray-800 dark:text-gray-200">
-                      <span>{t.title}</span>
-                      <span className="text-xs text-gray-400 shrink-0">
-                        第{t.week}周·第{t.day}天
-                      </span>
+                    <li key={t.id} className="px-3 py-2 text-gray-800 dark:text-gray-200">
+                      <div className="flex justify-between gap-2">
+                        <span>{t.title}</span>
+                        <span className="text-xs text-gray-400 shrink-0">
+                          第{t.week}周·第{t.day}天
+                        </span>
+                      </div>
+                      {t.resources && t.resources.length > 0 && (
+                        <p className="mt-1 text-xs text-primary-600 dark:text-primary-400">
+                          含 {t.resources.length} 个学习资源入口
+                        </p>
+                      )}
                     </li>
                   ))
                 )}
               </ul>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                接下来建议完成一次打卡，让系统记录你的学习节奏。
+              </p>
               <div className="flex flex-wrap gap-2 pt-2">
                 <button type="button" disabled={loading} onClick={() => void handleComplete()} className="btn-primary inline-flex items-center gap-2">
                   <CheckCircleIcon className="h-4 w-4" />
-                  完成引导
+                  完成并去打卡
                 </button>
                 <button type="button" disabled={loading} onClick={() => void handleSkip()} className="btn-outline">
                   跳过引导

@@ -27,9 +27,6 @@ const GoalListPage = lazy(() => import('./components/GoalListPage'));
 const GoalDetailPage = lazy(() => import('./components/GoalDetailPage'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const ReviewPage = lazy(() => import('./components/ReviewPage'));
-const AchievementPage = lazy(() => import('./components/AchievementPage'));
-const AnalyticsPage = lazy(() => import('./components/AnalyticsPage'));
-const TaskCenterPage = lazy(() => import('./components/TaskCenterPage'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const OpsPage = lazy(() => import('./components/OpsPage'));
 
@@ -166,15 +163,15 @@ function AppRoutes() {
       <Route path="/goals" element={<LazyProtected><GoalListPage /></LazyProtected>} />
       <Route path="/profile" element={<LazyProtected><ProfilePage /></LazyProtected>} />
       <Route path="/reviews" element={<LazyProtected><ReviewPage /></LazyProtected>} />
-      <Route path="/analytics" element={<LazyProtected><AnalyticsPage /></LazyProtected>} />
-      <Route path="/task-center" element={<LazyProtected><TaskCenterPage /></LazyProtected>} />
+      <Route path="/analytics" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/task-center" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={<AdminConsoleGate />}>
         <Route path="*" element={<Suspense fallback={<PageSkeleton />}><AdminPage /></Suspense>} />
       </Route>
       <Route path="/ops" element={<OpsConsoleGate />}>
         <Route path="*" element={<Suspense fallback={<PageSkeleton />}><OpsPage /></Suspense>} />
       </Route>
-      <Route path="/achievements" element={<LazyProtected><AchievementPage /></LazyProtected>} />
+      <Route path="/achievements" element={<Navigate to="/dashboard" replace />} />
 
       {/* 默认重定向 */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

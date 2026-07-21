@@ -64,17 +64,27 @@ export interface Plan {
   };
 }
 
+// 学习资源（AI 计划推荐）
+export interface LearningResource {
+  type: 'book' | 'article' | 'video' | 'project' | 'other';
+  title: string;
+  url: string;
+  description?: string;
+}
+
 // 周计划类型
 export interface WeeklyPlan {
   week: number;
   title: string;
   description: string;
   goals: string[];
+  resources?: LearningResource[];
   tasks: Array<{
     day: number;
     title: string;
     description: string;
     estimatedTime: number;
+    resources?: LearningResource[];
   }>;
 }
 
@@ -91,6 +101,8 @@ export interface Task {
   updatedAt: string;
   description?: string; // AI生成的任务描述
   estimatedTime?: number; // AI生成的任务预计时间（分钟）
+  /** AI 计划任务附带的学习资源 */
+  resources?: LearningResource[];
   plan?: {
     id: string;
     title: string;
@@ -387,8 +399,17 @@ export interface CheckinFormData {
   notes?: string;
   rating?: number;
   date?: string;
-  relatedTaskId?: string; // 关联的任务ID
-  relatedPlanId?: string; // 关联的计划ID
+}
+
+export interface AdaptiveSuggestion {
+  status: 'on_track' | 'falling_behind' | 'ahead';
+  completionRate: number;
+  suggestion: string;
+  adjustments: Array<{
+    week: number;
+    action: 'reduce' | 'increase' | 'keep';
+    reason: string;
+  }>;
 }
 
 // 主题类型
