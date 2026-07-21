@@ -16,7 +16,8 @@ export const planApi = {
   },
 
   generatePlan: async (data: GeneratePlanRequest): Promise<{ plan: Plan; message: string }> => {
-    const response = await api.post('/plans/generate', data);
+    // MiMo 等推理模型生成完整计划常需 60–90s，需高于默认 30s
+    const response = await api.post('/plans/generate', data, { timeout: 120000 });
     const parsed = unwrapResponse<{ plan: Plan }>(response.data, (raw) => ({ plan: raw.plan }));
     return { plan: parsed.data.plan, message: parsed.message || '学习计划生成成功' };
   },

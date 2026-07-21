@@ -1,6 +1,7 @@
 import axios from 'axios';
 import prisma from '../shared/prisma';
 import logger from '../shared/logger';
+import { extractChatMessageText } from '../shared/llmChatContent';
 import { resolveDefaultLlmRuntime, type ResolvedLlmRuntime } from './runtimeLlmConfigService';
 
 export interface AdaptiveSuggestion {
@@ -165,11 +166,11 @@ adjustments 数组应包含从当前周到最后一周的调整建议。action �
         'HTTP-Referer': 'https://learnflow.app',
         'X-Title': 'LearnFlow Learning Platform',
       },
-      timeout: llm.timeoutMs,
+      timeout: Math.max(llm.timeoutMs || 20000, 60000),
     },
   );
 
-  const content = response.data.choices?.[0]?.message?.content;
+  const content = extractChatMessageText(response.data.choices?.[0]?.message);
   if (!content) {
     throw new Error('AI 服务返回空响应');
   }

@@ -13,7 +13,9 @@ import {
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
 import { planApi, taskApi, aiTaskApi } from '../services/api';
 import MermaidRenderer from './MermaidRenderer';
+import LearningResourcesList from './LearningResourcesList';
 import type { Plan, WeeklyPlan, Task } from '../types';
+import { track } from '../utils/productAnalytics';
 
 export default function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +28,8 @@ export default function PlanDetailPage() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [aiTaskStatus, setAiTaskStatus] = useState<Map<string, boolean>>(new Map());
-  const [forceUpdate, setForceUpdate] = useState(0); // 强制重新渲染
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const [showMermaid, setShowMermaid] = useState(false);
 
   // 加载计划详情
   useEffect(() => {
@@ -91,6 +94,9 @@ export default function PlanDetailPage() {
         // 保存到数据库
         try {
           await aiTaskApi.updateCompletion(id, taskId, newCompleted);
+          if (newCompleted) {
+            track('task_completed', { planId: id, taskId, source: 'ai_task' });
+          }
         } catch (err) {
           console.error('保存AI任务状态失败:', err);
           // 如果保存失败，回滚本地状态
@@ -117,6 +123,7 @@ export default function PlanDetailPage() {
       } else {
         await taskApi.updateTask(taskId, { completed: true });
         setCompletedTasks(prev => new Set(prev).add(taskId));
+        track('task_completed', { planId: id, taskId, source: 'db_task' });
       }
       
       // 强制重新渲染以更新进度条
@@ -207,6 +214,7 @@ export default function PlanDetailPage() {
               completed: aiTaskStatus.get(taskId) || false, // 从本地状态获取完成状态
               description: task.description || '',
               estimatedTime: task.estimatedTime || 0,
+              resources: task.resources || [],
               userId: plan?.userId || '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
@@ -397,7 +405,7 @@ export default function PlanDetailPage() {
                   {currentWeekPlan.goals && currentWeekPlan.goals.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                        🎯 本周学习目标
+                        本周学习目标
                       </h4>
                       <ul className="space-y-1">
                         {currentWeekPlan.goals.map((goal, index) => (
@@ -409,6 +417,11 @@ export default function PlanDetailPage() {
                       </ul>
                     </div>
                   )}
+
+                  <LearningResourcesList
+                    resources={currentWeekPlan.resources}
+                    title="本周推荐资源（点开就能学）"
+                  />
                 </div>
               </div>
             )}
@@ -471,6 +484,13 @@ export default function PlanDetailPage() {
                                   {task.description}
                                 </p>
                               )}
+                              {!isCompleted && (
+                                <LearningResourcesList
+                                  resources={task.resources}
+                                  title="今日学习入口"
+                                  compact
+                                />
+                              )}
                             </div>
                             <button
                               onClick={() => toggleTaskComplete(task.id)}
@@ -509,19 +529,28 @@ export default function PlanDetailPage() {
             {plan.mermaidCode && (
               <div className="card">
                 <div className="card-header">
-                  <div className="flex items-center">
-                    <SparklesIcon className="h-5 w-5 mr-2 text-primary-500" />
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      学习路径图
-                    </h3>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <SparklesIcon className="h-5 w-5 mr-2 text-primary-500" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">学习路径图（可选）</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMermaid((v) => !v)}
+                      className="text-sm text-primary-600 hover:text-primary-500"
+                    >
+                      {showMermaid ? '收起' : '展开'}
+                    </button>
                   </div>
                 </div>
-                <div className="card-body">
-                  <MermaidRenderer 
-                    code={plan.mermaidCode?.replace(/\\n/g, '\n') || ''}
-                    theme="default"
-                  />
-                </div>
+                {showMermaid && (
+                  <div className="card-body">
+                    <MermaidRenderer
+                      code={plan.mermaidCode?.replace(/\\n/g, '\n') || ''}
+                      theme="default"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

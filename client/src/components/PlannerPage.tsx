@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { goalApi, planApi } from '../services/api';
 import MermaidRenderer from './MermaidRenderer';
 import type { Goal, Plan, GeneratePlanRequest, WeeklyPlan } from '../types';
+import { track } from '../utils/productAnalytics';
 
 export default function PlannerPage() {
   const navigate = useNavigate();
@@ -160,6 +161,7 @@ export default function PlannerPage() {
       }
 
       const response = await planApi.generatePlan(formData);
+      track('plan_generated', { source: 'planner', planId: response.plan.id });
       console.log('生成的计划响应:', response);
       console.log('计划对象:', response.plan);
       console.log('Mermaid代码:', response.plan.mermaidCode);
