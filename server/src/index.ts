@@ -17,6 +17,7 @@ import analyticsRoutes from './routes/analytics';
 import opsRoutes from './routes/ops';
 import accountRoutes from './routes/account';
 import agentTaskRoutes from './routes/agentTasks';
+import agentMemoryRoutes from './routes/agentMemories';
 import adminRoutes from './routes/admin';
 import videoResourceRoutes from './routes/videoResources';
 import { metricsMiddleware } from './middleware/metrics';
@@ -61,8 +62,18 @@ app.use(
 );
 
 function resolveCorsOrigin(): string | string[] {
+  const corsOrigin = process.env.CORS_ORIGIN;
   const clientUrl = process.env.CLIENT_URL;
   const devDefaults = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  
+  if (corsOrigin) {
+    const origins = corsOrigin.split(',').map(o => o.trim()).filter(Boolean);
+    if (process.env.NODE_ENV === 'production') {
+      return origins.length === 1 ? origins[0] : origins;
+    }
+    return [...new Set([...origins, ...devDefaults])];
+  }
+  
   if (process.env.NODE_ENV === 'production') {
     return clientUrl || devDefaults[0];
   }
@@ -79,10 +90,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(metricsMiddleware);
 
-// 速率限制 - 开发环境放宽限制
+// 速率限制 - 从环境变量读取配置
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1分钟
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 生产环境100次/分钟，开发环境1000次/分钟
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: process.env.NODE_ENV === 'production' ? env.RATE_LIMIT_MAX_REQUESTS : env.RATE_LIMIT_MAX_REQUESTS * 10,
   message: {
     error: 'Too Many Requests',
     message: '请求频率过高，请稍后重试',
@@ -105,21 +116,7 @@ const limiter = rateLimit({
   },
 });
 
-// 只在生产环境应用严格的速率限制
-if (process.env.NODE_ENV === 'production') {
-  app.use('/api', limiter);
-} else {
-  // 开发环境使用更宽松的限制，仅针对密集操作
-  const devLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1分钟
-    max: 500, // 开发环境每分钟500次请求
-    message: {
-      error: 'Too Many Requests',
-      message: '请求频率过高，请稍后重试',
-    },
-  });
-  app.use('/api', devLimiter);
-}
+app.use('/api', limiter);
 
 // Passport 中间件
 app.use(passport.initialize());
@@ -149,6 +146,7 @@ app.use('/api/ops', opsRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent-tasks', agentTaskRoutes);
+app.use('/api/agent-memories', agentMemoryRoutes);
 app.use('/api/video-resources', videoResourceRoutes);
 
 // 404 处理
